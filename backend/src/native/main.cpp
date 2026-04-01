@@ -192,7 +192,7 @@ py::dict parse_ardupilot_bin(py::bytes data) {
 // The PYBIND11_MODULE macro creates a function that will be called when an import statement
 // is issued from within Python. The module name (python_example) must match the
 // name of the final shared library.
-PYBIND11_MODULE(python_example, m) {
+PYBIND11_MODULE(flight_parser, m) {
     m.doc() = "pybind11 example plugin with Eigen and Ardupilot BIN parser"; // Optional module docstring
 
     m.def("add", &add, "A function that adds two numbers");
