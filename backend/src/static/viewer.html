@@ -519,8 +519,7 @@
     function buildTrajectory(trajectory, colorBy) {
       clearScene();
 
-      const sourcePoints = trajectory?.points || [];
-      const points = sourcePoints.filter((point, index) => index === 0 || point.valid_segment_from_previous !== false);
+      const points = trajectory?.points || [];
       playbackPoints = points;
 
       if (!points.length) {
@@ -543,9 +542,6 @@
       for (let index = 1; index < points.length; index += 1) {
         const prev = points[index - 1];
         const current = points[index];
-        if (current.valid_segment_from_previous === false || prev.valid_segment_from_previous === false) {
-          continue;
-        }
         const color = getMetricColor(values[index], minValue, maxValue);
 
         const entity = viewer.entities.add({
