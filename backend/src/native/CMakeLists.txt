@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 3.15)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-project(flight_parcer LANGUAGES CXX)
+project(flight_parser LANGUAGES CXX)
 
 # Force CMake to find and use Python 3.14 specifically before loading pybind11
 find_package(Python 3.14 COMPONENTS Interpreter Development REQUIRED)
@@ -44,9 +44,9 @@ FetchContent_MakeAvailable(eigen)
 # It creates a shared library with the correct extension for Python.
 # The first argument is the name of the module.
 # The second argument lists the source files.
-pybind11_add_module(flight_parcer main.cpp)
+pybind11_add_module(flight_parser main.cpp)
 
 # --- Link Dependencies ---
 # For Eigen, we need to add its include directory to our target.
 # pybind11 handles its own include directories automatically.
-target_include_directories(flight_parcer PRIVATE ${eigen_SOURCE_DIR})
+target_include_directories(flight_parser PRIVATE ${eigen_SOURCE_DIR})
