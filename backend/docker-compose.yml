@@ -1,0 +1,11 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: uav-analysis-backend
+    ports:
+      - "1599:8000"
+    env_file:
+      - .env
+    restart: unless-stopped

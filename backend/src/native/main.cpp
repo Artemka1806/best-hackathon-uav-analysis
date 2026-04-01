@@ -814,6 +814,327 @@ py::list detect_anomalies(py::object max_h_speed, py::object max_v_speed, py::ob
     return anomalies;
 }
 
+std::vector<size_t> sample_indices(size_t total, size_t max_samples) {
+    std::vector<size_t> indices;
+    if (total == 0) {
+        return indices;
+    }
+    if (total <= max_samples) {
+        indices.reserve(total);
+        for (size_t i = 0; i < total; ++i) {
+            indices.push_back(i);
+        }
+        return indices;
+    }
+
+    indices.reserve(max_samples);
+    for (size_t i = 0; i < max_samples; ++i) {
+        size_t idx = i * (total - 1) / (max_samples - 1);
+        if (indices.empty() || indices.back() != idx) {
+            indices.push_back(idx);
+        }
+    }
+    return indices;
+}
+
+std::string py_object_to_string(const py::handle& value) {
+    if (value.is_none()) {
+        return "null";
+    }
+    if (py::isinstance<py::float_>(value)) {
+        return std::to_string(round3(value.cast<double>()));
+    }
+    if (py::isinstance<py::int_>(value)) {
+        return std::to_string(value.cast<long long>());
+    }
+    if (py::isinstance<py::bool_>(value)) {
+        return value.cast<bool>() ? "true" : "false";
+    }
+    return value.cast<std::string>();
+}
+
+std::string join_list_pipe(const py::list& values) {
+    std::ostringstream out;
+    bool first = true;
+    for (const auto& value : values) {
+        if (!first) {
+            out << "|";
+        }
+        out << py_object_to_string(value);
+        first = false;
+    }
+    return out.str();
+}
+
+std::string primitive_to_toon(const py::handle& value) {
+    if (value.is_none()) {
+        return "null";
+    }
+    if (py::isinstance<py::bool_>(value)) {
+        return value.cast<bool>() ? "true" : "false";
+    }
+    if (py::isinstance<py::int_>(value)) {
+        return std::to_string(value.cast<long long>());
+    }
+    if (py::isinstance<py::float_>(value)) {
+        return py_object_to_string(value);
+    }
+    return value.cast<std::string>();
+}
+
+std::string toon_indent(int level) {
+    return std::string(level * 2, ' ');
+}
+
+bool is_primitive_value(const py::handle& value) {
+    return value.is_none()
+        || py::isinstance<py::bool_>(value)
+        || py::isinstance<py::int_>(value)
+        || py::isinstance<py::float_>(value)
+        || py::isinstance<py::str>(value);
+}
+
+void append_toon_value(std::ostringstream& out, const py::handle& value, int indent_level);
+
+void append_toon_list(std::ostringstream& out, const py::list& values, int indent_level) {
+    std::string indent = toon_indent(indent_level);
+    if (py::len(values) == 0) {
+        out << indent << "[]\n";
+        return;
+    }
+
+    bool all_primitives = true;
+    for (const auto& item : values) {
+        if (!is_primitive_value(item)) {
+            all_primitives = false;
+            break;
+        }
+    }
+
+    if (all_primitives) {
+        bool first = true;
+        for (const auto& item : values) {
+            if (!first) {
+                out << ",";
+            }
+            out << primitive_to_toon(item);
+            first = false;
+        }
+        out << "\n";
+        return;
+    }
+
+    out << "\n";
+    size_t index = 0;
+    for (const auto& item : values) {
+        out << indent << "item_" << index << ":\n";
+        append_toon_value(out, item, indent_level + 1);
+        ++index;
+    }
+}
+
+void append_toon_dict(std::ostringstream& out, const py::dict& obj, int indent_level) {
+    for (const auto& item : obj) {
+        std::string indent = toon_indent(indent_level);
+        std::string key = py::str(item.first);
+        py::handle value = item.second;
+
+        if (is_primitive_value(value)) {
+            out << indent << key << ": " << primitive_to_toon(value) << "\n";
+            continue;
+        }
+
+        if (py::isinstance<py::list>(value)) {
+            py::list list_value = value.cast<py::list>();
+            out << indent << key << "[" << py::len(list_value) << "]: ";
+            append_toon_list(out, list_value, indent_level + 1);
+            continue;
+        }
+
+        if (py::isinstance<py::dict>(value)) {
+            out << indent << key << ":\n";
+            append_toon_dict(out, value.cast<py::dict>(), indent_level + 1);
+            continue;
+        }
+
+        out << indent << key << ": " << primitive_to_toon(value) << "\n";
+    }
+}
+
+void append_toon_value(std::ostringstream& out, const py::handle& value, int indent_level) {
+    if (is_primitive_value(value)) {
+        out << toon_indent(indent_level) << primitive_to_toon(value) << "\n";
+        return;
+    }
+
+    if (py::isinstance<py::dict>(value)) {
+        append_toon_dict(out, value.cast<py::dict>(), indent_level);
+        return;
+    }
+
+    if (py::isinstance<py::list>(value)) {
+        append_toon_list(out, value.cast<py::list>(), indent_level);
+        return;
+    }
+
+    out << toon_indent(indent_level) << primitive_to_toon(value) << "\n";
+}
+
+std::string build_ai_context_toon(
+    const py::dict& analysis_payload
+) {
+    std::ostringstream out;
+    py::dict summary = analysis_payload["summary"].cast<py::dict>();
+    py::dict sampling = analysis_payload["sampling"].cast<py::dict>();
+    py::dict units = analysis_payload["units"].cast<py::dict>();
+    py::dict metrics = analysis_payload["metrics"].cast<py::dict>();
+    py::dict trajectory = analysis_payload["trajectory"].cast<py::dict>();
+    py::dict series = analysis_payload["series"].cast<py::dict>();
+    py::dict raw_preview = analysis_payload["raw_preview"].cast<py::dict>();
+
+    out << "summary:\n";
+    append_toon_dict(out, summary, 1);
+
+    out << "sampling:\n";
+    append_toon_dict(out, sampling, 1);
+
+    out << "units:\n";
+    append_toon_dict(out, units, 1);
+
+    out << "metrics:\n";
+    append_toon_dict(out, metrics, 1);
+
+    out << "raw_preview:\n";
+    append_toon_dict(out, raw_preview, 1);
+
+    py::list trajectory_points = trajectory["points"].cast<py::list>();
+    py::dict origin = trajectory["origin"].cast<py::dict>();
+    py::list trajectory_speed = trajectory["speed_series"].cast<py::list>();
+
+    out << "trajectory:\n";
+    out << "  origin:\n";
+    append_toon_dict(out, origin, 2);
+    out << "  point_count: " << py::len(trajectory_points) << "\n";
+    out << "  speed_sample_count: " << py::len(trajectory_speed) << "\n";
+
+    if (py::len(trajectory_points) > 0) {
+        py::dict first = trajectory_points[0].cast<py::dict>();
+        py::dict last = trajectory_points[py::len(trajectory_points) - 1].cast<py::dict>();
+        double min_e = first["e"].cast<double>();
+        double max_e = min_e;
+        double min_n = first["n"].cast<double>();
+        double max_n = min_n;
+        double min_u = first["u"].cast<double>();
+        double max_u = min_u;
+        size_t invalid_segments = 0;
+
+        for (const auto& raw : trajectory_points) {
+            py::dict point = raw.cast<py::dict>();
+            double e = point["e"].cast<double>();
+            double n = point["n"].cast<double>();
+            double u = point["u"].cast<double>();
+            min_e = std::min(min_e, e);
+            max_e = std::max(max_e, e);
+            min_n = std::min(min_n, n);
+            max_n = std::max(max_n, n);
+            min_u = std::min(min_u, u);
+            max_u = std::max(max_u, u);
+            if (!point["valid_segment_from_previous"].cast<bool>()) {
+                ++invalid_segments;
+            }
+        }
+
+        out << "  time_range_s: " << round3(first["t"].cast<double>() / 1'000'000.0)
+            << "," << round3(last["t"].cast<double>() / 1'000'000.0) << "\n";
+        out << "  enu_bounds_m:\n";
+        out << "    e_min: " << round3(min_e) << "\n";
+        out << "    e_max: " << round3(max_e) << "\n";
+        out << "    n_min: " << round3(min_n) << "\n";
+        out << "    n_max: " << round3(max_n) << "\n";
+        out << "    u_min: " << round3(min_u) << "\n";
+        out << "    u_max: " << round3(max_u) << "\n";
+        out << "  invalid_segment_count: " << invalid_segments << "\n";
+
+        std::vector<size_t> point_indices = sample_indices(py::len(trajectory_points), 24);
+        out << "  point_samples[" << point_indices.size() << "]{t_s,e,n,u,alt,yaw,valid}:\n";
+        for (size_t idx : point_indices) {
+            py::dict point = trajectory_points[idx].cast<py::dict>();
+            out << "    " << round3(point["t"].cast<double>() / 1'000'000.0) << ","
+                << round3(point["e"].cast<double>()) << ","
+                << round3(point["n"].cast<double>()) << ","
+                << round3(point["u"].cast<double>()) << ","
+                << round3(point["alt"].cast<double>()) << ","
+                << round3(point["yaw"].cast<double>()) << ","
+                << primitive_to_toon(point["valid_segment_from_previous"]) << "\n";
+        }
+    }
+
+    auto append_series_summary = [&](const char* section_name,
+                                     const py::list& values,
+                                     const std::vector<std::string>& fields,
+                                     size_t max_samples) {
+        out << section_name << ":\n";
+        out << "  count: " << py::len(values) << "\n";
+        if (py::len(values) == 0) {
+            return;
+        }
+
+        py::dict first = values[0].cast<py::dict>();
+        py::dict last = values[py::len(values) - 1].cast<py::dict>();
+        out << "  time_range_s: " << py_object_to_string(first["t"]) << ","
+            << py_object_to_string(last["t"]) << "\n";
+
+        for (const auto& field : fields) {
+            double min_v = first[py::str(field)].cast<double>();
+            double max_v = min_v;
+            for (const auto& raw : values) {
+                py::dict row = raw.cast<py::dict>();
+                double value = row[py::str(field)].cast<double>();
+                min_v = std::min(min_v, value);
+                max_v = std::max(max_v, value);
+            }
+            out << "  " << field << "_min: " << round3(min_v) << "\n";
+            out << "  " << field << "_max: " << round3(max_v) << "\n";
+        }
+
+        std::vector<size_t> indices = sample_indices(py::len(values), max_samples);
+        out << "  samples[" << indices.size() << "]{t";
+        for (const auto& field : fields) {
+            out << "," << field;
+        }
+        out << "}:\n";
+        for (size_t idx : indices) {
+            py::dict row = values[idx].cast<py::dict>();
+            out << "    " << py_object_to_string(row["t"]);
+            for (const auto& field : fields) {
+                out << "," << py_object_to_string(row[py::str(field)]);
+            }
+            out << "\n";
+        }
+    };
+
+    append_series_summary(
+        "gps_altitude_series",
+        series["altitude"].cast<py::list>(),
+        {"value"},
+        24
+    );
+    append_series_summary(
+        "imu_speed_series",
+        series["imu_speed"].cast<py::list>(),
+        {"horizontal", "vertical"},
+        24
+    );
+    append_series_summary(
+        "imu_acceleration_series",
+        series["imu_acceleration"].cast<py::list>(),
+        {"value"},
+        24
+    );
+
+    return out.str();
+}
+
 } // namespace
 
 py::dict parse_ardupilot_bin(py::bytes data) {
@@ -925,7 +1246,8 @@ py::dict analyze_flight_log(py::bytes data) {
     summary["imu_message"] = imu_message_name;
     summary["point_count"] = py::int_(gps_samples.size());
     summary["warnings"] = warnings;
-    summary["anomalies"] = detect_anomalies(max_h_speed, max_v_speed, max_acc);
+    py::list anomalies = detect_anomalies(max_h_speed, max_v_speed, max_acc);
+    summary["anomalies"] = anomalies;
 
     py::dict series = build_altitude_series(gps_samples);
     series["imu_speed"] = imu_speed_series;
@@ -942,6 +1264,7 @@ py::dict analyze_flight_log(py::bytes data) {
     result["trajectory"] = trajectory;
     result["series"] = series;
     result["raw_preview"] = raw_preview;
+    result["ai_context_toon"] = build_ai_context_toon(result);
     return result;
 }
 

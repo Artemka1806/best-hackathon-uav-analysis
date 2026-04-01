@@ -88,6 +88,193 @@
       border: 1px solid var(--border);
     }
 
+    .accordion {
+      display: block;
+      width: 100%;
+      border-radius: 14px;
+      background: var(--panel-soft);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      flex: 0 0 auto;
+    }
+
+    .accordion summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      min-height: 52px;
+      cursor: pointer;
+      padding: 14px;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      user-select: none;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid transparent;
+    }
+
+    .accordion summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .accordion summary::after {
+      content: "▾";
+      font-size: 16px;
+      color: var(--muted);
+      transition: transform 0.18s ease;
+      flex: 0 0 auto;
+      margin-left: 12px;
+    }
+
+    .accordion[open] summary {
+      border-bottom-color: var(--border);
+    }
+
+    .accordion[open] summary::after {
+      transform: rotate(180deg);
+    }
+
+    .accordion-body {
+      padding: 0 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .secondary-btn {
+      background: #0b171f;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .ai-chat {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .ai-chat-log {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 160px;
+      max-height: 300px;
+      overflow-y: auto;
+      padding-right: 4px;
+      position: relative;
+      align-items: stretch;
+    }
+
+    .chat-msg {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      flex: 0 0 auto;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      border: 1px solid var(--border);
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .chat-msg.user {
+      background: rgba(244, 201, 93, 0.10);
+      border-color: rgba(244, 201, 93, 0.18);
+      color: #fff3cd;
+    }
+
+    .chat-msg.assistant {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+    }
+
+    .chat-msg.assistant p,
+    .chat-msg.assistant ul,
+    .chat-msg.assistant h4 {
+      margin: 0 0 8px;
+    }
+
+    .chat-msg.assistant > :last-child {
+      margin-bottom: 0;
+    }
+
+    .ai-output {
+      white-space: pre-wrap;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      min-height: 54px;
+      width: 100%;
+      display: block;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .ai-output.streaming::after {
+      content: "";
+      display: inline-block;
+      width: 8px;
+      height: 1em;
+      margin-left: 4px;
+      vertical-align: -2px;
+      background: var(--accent);
+      animation: ai-cursor-blink 1s steps(1) infinite;
+    }
+
+    .live-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent);
+    }
+
+    .live-indicator::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 rgba(244, 201, 93, 0.5);
+      animation: live-pulse 1.2s infinite;
+    }
+
+    @keyframes ai-cursor-blink {
+      0%, 50% { opacity: 1; }
+      50.01%, 100% { opacity: 0; }
+    }
+
+    @keyframes live-pulse {
+      0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(244, 201, 93, 0.45); }
+      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(244, 201, 93, 0); }
+      100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(244, 201, 93, 0); }
+    }
+
+    .chat-form {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    .chat-input {
+      flex: 1 1 auto;
+      min-height: 72px;
+      min-width: 0;
+      resize: vertical;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0b171f;
+      color: var(--text);
+      padding: 12px;
+      font: inherit;
+    }
+
     .field-row {
       display: flex;
       gap: 10px;
@@ -324,6 +511,26 @@
         <div id="status" class="status">Select a `.BIN` flight log to start analysis.</div>
       </section>
 
+      <details class="accordion" id="aiAccordion" open>
+        <summary>AI Flight Debrief</summary>
+        <div class="accordion-body">
+          <div id="aiSummaryStatus" class="mono">AI summary is idle.</div>
+          <div class="ai-chat">
+            <div id="aiChatLog" class="ai-chat-log">
+              <div id="aiSummaryOutput" class="ai-output">AI debrief will appear here after analysis.</div>
+            </div>
+            <form id="aiChatForm" class="chat-form">
+              <textarea
+                id="aiChatInput"
+                class="chat-input"
+                placeholder="Ask a follow-up question about the flight analysis..."
+              ></textarea>
+              <button id="aiChatSendBtn" class="secondary-btn" type="submit">Send</button>
+            </form>
+          </div>
+        </div>
+      </details>
+
       <section class="field-group">
         <div class="tiny-label">Mission Metrics</div>
         <div class="metric-grid" id="metricGrid"></div>
@@ -412,6 +619,13 @@
     const samplingInfo = document.getElementById('samplingInfo');
     const slider = document.getElementById('timeSlider');
     const timeLabel = document.getElementById('timeLabel');
+    const aiAccordion = document.getElementById('aiAccordion');
+    const aiSummaryStatus = document.getElementById('aiSummaryStatus');
+    const aiSummaryOutput = document.getElementById('aiSummaryOutput');
+    const aiChatLog = document.getElementById('aiChatLog');
+    const aiChatForm = document.getElementById('aiChatForm');
+    const aiChatInput = document.getElementById('aiChatInput');
+    const aiChatSendBtn = document.getElementById('aiChatSendBtn');
 
     let analysis = null;
     let playbackPoints = [];
@@ -420,6 +634,9 @@
     let altitudeChart = null;
     let speedChart = null;
     let accelerationChart = null;
+    let aiChatSocket = null;
+    let aiCurrentAssistantMessage = null;
+    let aiCurrentAssistantHtml = '';
 
     const metricConfig = [
       { key: 'flight_duration_s', label: 'Flight Duration', unit: 's', digits: 1 },
@@ -500,6 +717,145 @@
       slider.value = 0;
       slider.disabled = true;
       timeLabel.textContent = 't: - | alt: - | speed: -';
+    }
+
+    function resetAiSummary(message = 'Run AI debrief to get an explanation for this flight.') {
+      if (aiChatSocket) {
+        aiChatSocket.close();
+        aiChatSocket = null;
+      }
+      aiSummaryStatus.textContent = 'AI summary is idle.';
+      aiSummaryOutput.textContent = message;
+      aiSummaryOutput.classList.remove('streaming');
+      aiChatSendBtn.disabled = true;
+      aiChatInput.disabled = true;
+      aiChatLog.innerHTML = '';
+      aiChatLog.appendChild(aiSummaryOutput);
+      aiCurrentAssistantMessage = null;
+      aiCurrentAssistantHtml = '';
+      aiAccordion.open = true;
+    }
+
+    function scrollChatToBottom() {
+      aiChatLog.scrollTop = aiChatLog.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function appendUserMessage(text) {
+      const el = document.createElement('div');
+      el.className = 'chat-msg user';
+      el.innerHTML = `<strong>You:</strong><br>${escapeHtml(text)}`;
+      aiChatLog.appendChild(el);
+      scrollChatToBottom();
+    }
+
+    function startAssistantMessage() {
+      if (aiSummaryOutput.parentElement === aiChatLog) {
+        aiSummaryOutput.remove();
+      }
+      aiCurrentAssistantMessage = document.createElement('div');
+      aiCurrentAssistantMessage.className = 'chat-msg assistant ai-output streaming';
+      aiCurrentAssistantMessage.innerHTML = '';
+      aiCurrentAssistantHtml = '';
+      aiChatLog.appendChild(aiCurrentAssistantMessage);
+      scrollChatToBottom();
+    }
+
+    function appendAssistantChunk(htmlChunk) {
+      if (!aiCurrentAssistantMessage) {
+        startAssistantMessage();
+      }
+      aiCurrentAssistantHtml += htmlChunk;
+      aiCurrentAssistantMessage.innerHTML = aiCurrentAssistantHtml;
+      scrollChatToBottom();
+    }
+
+    function finishAssistantMessage() {
+      if (aiCurrentAssistantMessage) {
+        aiCurrentAssistantMessage.classList.remove('streaming');
+      }
+      aiCurrentAssistantMessage = null;
+      aiCurrentAssistantHtml = '';
+      scrollChatToBottom();
+    }
+
+    function ensureAiSocket() {
+      if (aiChatSocket && aiChatSocket.readyState === WebSocket.OPEN) {
+        return Promise.resolve(aiChatSocket);
+      }
+
+      if (aiChatSocket && aiChatSocket.readyState === WebSocket.CONNECTING) {
+        return new Promise((resolve, reject) => {
+          const socket = aiChatSocket;
+          socket.addEventListener('open', () => resolve(socket), { once: true });
+          socket.addEventListener('error', reject, { once: true });
+        });
+      }
+
+      return new Promise((resolve, reject) => {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const socket = new WebSocket(`${protocol}//${window.location.host}/api/ws/chat`);
+        aiChatSocket = socket;
+
+        socket.onopen = () => resolve(socket);
+
+        socket.onmessage = (event) => {
+          let payload;
+          try {
+            payload = JSON.parse(event.data);
+          } catch {
+            payload = { type: 'chunk', text: event.data };
+          }
+
+          if (payload.type === 'start') {
+            aiSummaryStatus.innerHTML = '<span class="live-indicator">Streaming AI summary...</span>';
+            startAssistantMessage();
+            return;
+          }
+          if (payload.type === 'chunk') {
+            appendAssistantChunk(payload.text || '');
+            return;
+          }
+          if (payload.type === 'done') {
+            aiSummaryStatus.textContent = 'AI summary is ready.';
+            finishAssistantMessage();
+            aiChatSendBtn.disabled = false;
+            aiChatInput.disabled = false;
+            aiChatInput.focus();
+            return;
+          }
+          if (payload.type === 'error') {
+            aiSummaryStatus.textContent = 'AI summary failed.';
+            aiSummaryOutput.textContent = payload.message || 'AI error';
+            aiSummaryOutput.classList.remove('streaming');
+            finishAssistantMessage();
+            aiChatSendBtn.disabled = false;
+            aiChatInput.disabled = false;
+          }
+        };
+
+        socket.onerror = () => {
+          aiSummaryStatus.textContent = 'AI summary failed.';
+          aiSummaryOutput.textContent = 'WebSocket error while generating AI summary.';
+          aiChatSendBtn.disabled = false;
+          aiChatInput.disabled = false;
+          reject(new Error('WebSocket connection failed'));
+        };
+
+        socket.onclose = () => {
+          if (aiChatSocket === socket) {
+            aiChatSocket = null;
+          }
+        };
+      });
     }
 
     function getSpeedMap(speedSeries = []) {
@@ -719,6 +1075,67 @@
       viewer.scene.requestRender();
     }
 
+    async function generateAiSummary() {
+      if (!analysis) {
+        aiSummaryStatus.textContent = 'Analyze a flight first.';
+        aiSummaryOutput.textContent = 'No AI context is available yet.';
+        return;
+      }
+      aiChatSendBtn.disabled = true;
+      aiChatInput.disabled = true;
+      aiSummaryStatus.innerHTML = '<span class="live-indicator">Streaming AI summary...</span>';
+      aiAccordion.open = true;
+      aiAccordion.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+      try {
+        const socket = await ensureAiSocket();
+        socket.send(JSON.stringify({
+          type: 'init',
+          filename: analysis.filename,
+          ai_context_toon: analysis.ai_context_toon,
+          question:
+            'Provide an initial debrief for this flight: summarize what happened, highlight the key metrics, explain any anomalies, and describe what they may indicate.',
+        }));
+      } catch (error) {
+        aiSummaryStatus.textContent = 'AI summary failed.';
+        aiSummaryOutput.textContent = error.message || 'Network error while generating AI summary.';
+        aiSummaryOutput.classList.remove('streaming');
+        aiChatSendBtn.disabled = false;
+        aiChatInput.disabled = false;
+      }
+    }
+
+    async function sendChatQuestion(question) {
+      if (!analysis) {
+        return;
+      }
+      const trimmed = question.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      appendUserMessage(trimmed);
+      aiChatInput.value = '';
+      aiChatSendBtn.disabled = true;
+      aiChatInput.disabled = true;
+      aiSummaryStatus.innerHTML = '<span class="live-indicator">Streaming AI answer...</span>';
+
+      try {
+        const socket = await ensureAiSocket();
+        socket.send(JSON.stringify({
+          type: 'question',
+          filename: analysis.filename,
+          ai_context_toon: analysis.ai_context_toon,
+          question: trimmed,
+        }));
+      } catch (error) {
+        aiSummaryStatus.textContent = 'AI summary failed.';
+        aiSummaryOutput.textContent = error.message || 'Network error while generating AI summary.';
+        aiChatSendBtn.disabled = false;
+        aiChatInput.disabled = false;
+      }
+    }
+
     async function analyzeFlight() {
       const file = fileInput.files[0];
       if (!file) {
@@ -728,6 +1145,11 @@
 
       uploadBtn.disabled = true;
       setStatus('Parsing telemetry, converting GPS to ENU, and computing mission metrics...', 'info');
+      aiAccordion.open = true;
+      aiSummaryStatus.textContent = 'Analyzing...';
+      aiSummaryOutput.textContent = 'Analyzing flight log and preparing AI debrief...';
+      aiChatInput.disabled = true;
+      aiChatSendBtn.disabled = true;
 
       const form = new FormData();
       form.append('file', file);
@@ -750,6 +1172,10 @@
         renderMessages(payload.raw_preview);
         renderCharts(payload.series);
         buildTrajectory(payload.trajectory, colorMode.value);
+        resetAiSummary();
+        aiSummaryStatus.textContent = 'Analyzing...';
+        aiSummaryOutput.textContent = 'Analysis is ready. Requesting AI debrief...';
+        generateAiSummary();
 
         const warningCount = (payload.summary?.warnings || []).length;
         const anomalyCount = (payload.summary?.anomalies || []).length;
@@ -759,6 +1185,8 @@
         );
       } catch (error) {
         setStatus(`Network error: ${error.message}`, 'error');
+        aiSummaryStatus.textContent = 'AI summary failed.';
+        aiSummaryOutput.textContent = error.message || 'Analysis request failed.';
       } finally {
         uploadBtn.disabled = false;
       }
@@ -771,9 +1199,14 @@
       }
     });
     uploadBtn.addEventListener('click', analyzeFlight);
+    aiChatForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      sendChatQuestion(aiChatInput.value);
+    });
 
     renderMetrics();
     renderMessages();
+    resetAiSummary('AI debrief will appear here after analysis.');
   </script>
 </body>
 </html>
