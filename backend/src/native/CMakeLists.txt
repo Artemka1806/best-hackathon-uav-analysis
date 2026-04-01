@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.15)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-project(PythonExample LANGUAGES CXX)
+project(flight_parcer LANGUAGES CXX)
 
 # Include FetchContent for managing dependencies.
 include(FetchContent)
@@ -39,11 +39,11 @@ FetchContent_MakeAvailable(eigen)
 # It creates a shared library with the correct extension for Python.
 # The first argument is the name of the module.
 # The second argument lists the source files.
-pybind11_add_module(python_example main.cpp)
+pybind11_add_module(flight_parcer main.cpp)
 
 # --- Link Dependencies ---
 # For Eigen, we need to add its include directory to our target.
 # pybind11 handles its own include directories automatically.
 # We use PRIVATE because Eigen is a header-only library and its headers
 # are only needed during the compilation of our module.
-target_include_directories(python_example PRIVATE ${eigen_SOURCE_DIR})
+target_include_directories(flight_parcer PRIVATE ${eigen_SOURCE_DIR})
