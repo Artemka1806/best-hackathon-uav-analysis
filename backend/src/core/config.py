@@ -1,11 +1,12 @@
 import logging
+from typing import Optional
 
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    gemini_model: str
-    gemini_api_key: str
+    gemini_model: str = "gemini-2.0-flash"
+    gemini_api_key: Optional[str] = None
 
     model_config = {"env_file": ".env"}
 

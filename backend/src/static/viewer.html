@@ -2,245 +2,782 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>UAV Flight Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UAV Telemetry Analysis</title>
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.116/Build/Cesium/Cesium.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.116/Build/Cesium/Widgets/widgets.css" rel="stylesheet" />
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; font-family: sans-serif; background: #1a1a2e; color: #eee; }
-    #cesiumContainer { width: 100%; height: calc(100% - 110px); }
-    #controls {
-      height: 110px;
-      padding: 12px 16px;
-      background: #16213e;
+    :root {
+      --bg: #09131a;
+      --panel: #10212b;
+      --panel-strong: #163241;
+      --panel-soft: #0d1a22;
+      --text: #eef6f8;
+      --muted: #8eb1bc;
+      --accent: #f4c95d;
+      --accent-2: #6be3ff;
+      --danger: #ff7b72;
+      --ok: #69d29d;
+      --border: rgba(255, 255, 255, 0.08);
+      --shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; min-height: 100%; background:
+      radial-gradient(circle at top right, rgba(107, 227, 255, 0.16), transparent 30%),
+      radial-gradient(circle at bottom left, rgba(244, 201, 93, 0.14), transparent 30%),
+      linear-gradient(180deg, #071017 0%, #09131a 100%);
+      color: var(--text);
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+    }
+
+    body {
+      padding: 18px;
+      overflow: hidden;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+      gap: 18px;
+      height: calc(100vh - 36px);
+      min-height: calc(100vh - 36px);
+    }
+
+    .panel {
+      background: rgba(16, 33, 43, 0.92);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
+    }
+
+    .sidebar {
+      padding: 18px;
       display: flex;
       flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.05;
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 14px;
+      border-radius: 14px;
+      background: var(--panel-soft);
+      border: 1px solid var(--border);
+    }
+
+    .field-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    label, .tiny-label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    input[type="file"], select, button {
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0b171f;
+      color: var(--text);
+      min-height: 42px;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 10px;
+    }
+
+    select, button {
+      padding: 0 14px;
+    }
+
+    button {
+      background: linear-gradient(135deg, #f4c95d 0%, #da8f3b 100%);
+      color: #152028;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    .status {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(107, 227, 255, 0.08);
+      border: 1px solid rgba(107, 227, 255, 0.18);
+      font-size: 13px;
+      color: #d3f7ff;
+      min-height: 46px;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric-card {
+      padding: 14px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, rgba(22, 50, 65, 0.92), rgba(11, 23, 31, 0.98));
+      border: 1px solid var(--border);
+    }
+
+    .metric-value {
+      display: block;
+      margin-top: 8px;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .metric-meta {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
       gap: 8px;
     }
-    #top-row { display: flex; align-items: center; gap: 12px; }
-    #top-row label { font-size: 14px; }
-    #fileInput { flex: 1; font-size: 13px; color: #ccc; }
-    #uploadBtn {
-      padding: 6px 18px;
-      background: #0f3460;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
+
+    .pill {
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      color: var(--text);
     }
-    #uploadBtn:hover { background: #1a5276; }
-    #uploadBtn:disabled { background: #555; cursor: default; }
-    #status { font-size: 12px; color: #aaa; }
-    #slider-row { display: flex; align-items: center; gap: 10px; }
-    #slider-row label { font-size: 13px; white-space: nowrap; }
-    #timeSlider { flex: 1; }
-    #timeLabel { font-size: 12px; color: #ccc; min-width: 80px; text-align: right; }
+
+    .pill.warning {
+      background: rgba(255, 123, 114, 0.12);
+      border-color: rgba(255, 123, 114, 0.2);
+      color: #ffd6d3;
+    }
+
+    .main {
+      display: grid;
+      grid-template-rows: minmax(420px, 58vh) minmax(280px, 1fr);
+      gap: 18px;
+      min-height: 0;
+      height: 100%;
+    }
+
+    #cesiumContainer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border-radius: var(--radius);
+    }
+
+    .main-top {
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+      height: 100%;
+    }
+
+    .map-overlay {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      bottom: 18px;
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .overlay-card {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(8, 16, 22, 0.74);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      pointer-events: auto;
+    }
+
+    .overlay-card input[type="range"] {
+      width: min(420px, 56vw);
+    }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      min-height: 0;
+      height: 100%;
+    }
+
+    .chart-card {
+      padding: 14px 14px 8px;
+      min-height: 280px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-title {
+      margin: 0 0 8px;
+      font-size: 15px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .mono {
+      font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+      font-size: 12px;
+    }
+
+    @media (max-width: 1100px) {
+      body { overflow: auto; }
+      .layout { grid-template-columns: 1fr; }
+      .layout { height: auto; min-height: calc(100vh - 36px); }
+      .main { grid-template-rows: 420px auto; height: auto; }
+      .sidebar { overflow: visible; }
+      .chart-grid { grid-template-columns: 1fr; }
+      .metric-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 680px) {
+      body { padding: 10px; overflow: auto; }
+      .layout { height: auto; min-height: calc(100vh - 20px); }
+      .main { grid-template-rows: 360px auto; height: auto; }
+      .sidebar { overflow: visible; }
+      .metric-grid { grid-template-columns: 1fr; }
+      .map-overlay { left: 10px; right: 10px; bottom: 10px; }
+      .overlay-card input[type="range"] { width: 100%; }
+    }
   </style>
 </head>
 <body>
+  <div class="layout">
+    <aside class="panel sidebar">
+      <div>
+        <h1 class="title">UAV Mission Analysis</h1>
+      </div>
 
-<div id="cesiumContainer"></div>
+      <section class="field-group">
+        <div class="field-row">
+          <div style="flex: 1 1 100%;">
+            <label for="fileInput">Flight Log (.BIN)</label>
+            <input type="file" id="fileInput" accept=".bin,.BIN" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div style="flex: 1 1 160px;">
+            <label for="colorMode">Trajectory Color</label>
+            <select id="colorMode">
+              <option value="speed">Speed</option>
+              <option value="time">Time</option>
+            </select>
+          </div>
+          <button id="uploadBtn" style="flex: 1 1 160px;">Analyze Flight</button>
+        </div>
+        <div id="status" class="status">Select a `.BIN` flight log to start analysis.</div>
+      </section>
 
-<div id="controls">
-  <div id="top-row">
-    <label>Flight Log (.BIN):</label>
-    <input type="file" id="fileInput" accept=".bin,.BIN" />
-    <button id="uploadBtn">Upload &amp; Visualize</button>
-    <span id="status">Select a .BIN file to begin.</span>
+      <section class="field-group">
+        <div class="tiny-label">Mission Metrics</div>
+        <div class="metric-grid" id="metricGrid"></div>
+      </section>
+
+      <section class="field-group">
+        <div class="tiny-label">Warnings & Anomalies</div>
+        <div class="pill-list" id="warningList">
+          <span class="pill">No analysis yet</span>
+        </div>
+      </section>
+
+      <section class="field-group">
+        <div class="tiny-label">Messages & Sampling</div>
+        <div class="pill-list" id="messageList"></div>
+        <div class="mono" id="samplingInfo">GPS: - | IMU: -</div>
+      </section>
+    </aside>
+
+    <main class="main">
+      <section class="panel main-top">
+        <div id="cesiumContainer"></div>
+        <div class="map-overlay">
+          <div class="overlay-card" style="min-width: 220px;">
+            <div class="tiny-label">Playback</div>
+            <input type="range" id="timeSlider" min="0" max="0" value="0" disabled />
+          </div>
+          <div class="overlay-card">
+            <div class="tiny-label">Current Sample</div>
+            <div id="timeLabel">t: - | alt: - | speed: -</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="chart-grid">
+        <article class="panel chart-card">
+          <h2 class="chart-title">Altitude vs Time</h2>
+          <canvas id="altitudeChart"></canvas>
+        </article>
+        <article class="panel chart-card">
+          <h2 class="chart-title">Integrated Speed</h2>
+          <canvas id="speedChart"></canvas>
+        </article>
+        <article class="panel chart-card">
+          <h2 class="chart-title">Acceleration</h2>
+          <canvas id="accelerationChart"></canvas>
+        </article>
+      </section>
+    </main>
   </div>
-  <div id="slider-row">
-    <label>Time:</label>
-    <input type="range" id="timeSlider" min="0" max="0" value="0" disabled />
-    <span id="timeLabel">–</span>
-  </div>
-</div>
 
-<script>
-  // Disable all Cesium ion requests — no token needed
-  Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.AAAA';
+  <script>
+    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.AAAA';
 
-  const osmProvider = new Cesium.UrlTemplateImageryProvider({
-    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    maximumLevel: 19,
-    credit: new Cesium.Credit('© OpenStreetMap contributors'),
-  });
-
-  const viewer = new Cesium.Viewer('cesiumContainer', {
-    imageryProvider: false,
-    terrainProvider: new Cesium.EllipsoidTerrainProvider(),
-    baseLayerPicker: false,
-    geocoder: false,
-    homeButton: false,
-    sceneModePicker: false,
-    navigationHelpButton: false,
-    animation: false,
-    timeline: false,
-    fullscreenButton: false,
-    creditContainer: document.createElement('div'),
-  });
-
-  viewer.imageryLayers.removeAll();
-  viewer.imageryLayers.addImageryProvider(osmProvider);
-
-  let points = [];
-  let origin = null;
-  let baseAlt = 0;
-  let pathEntity = null;
-  let remainingEntity = null;
-  let uavEntity = null;
-
-  const slider = document.getElementById('timeSlider');
-  const timeLabel = document.getElementById('timeLabel');
-  const status = document.getElementById('status');
-  const uploadBtn = document.getElementById('uploadBtn');
-  const fileInput = document.getElementById('fileInput');
-
-  function clearScene() {
-    viewer.entities.removeAll();
-    pathEntity = null;
-    remainingEntity = null;
-    uavEntity = null;
-    points = [];
-    origin = null;
-    baseAlt = 0;
-    slider.max = 0;
-    slider.value = 0;
-    slider.disabled = true;
-    timeLabel.textContent = '–';
-  }
-
-  function buildEntities() {
-    baseAlt = origin ? origin.alt : points[0].alt;
-    const allPos = points.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, baseAlt + p.u));
-
-    // Full trajectory — red bold (static, positions computed once from current points)
-    pathEntity = viewer.entities.add({
-      polyline: {
-        positions: allPos,
-        width: 6,
-        material: Cesium.Color.RED,
-        clampToGround: false,
-      },
+    const viewer = new Cesium.Viewer('cesiumContainer', {
+      imageryProvider: false,
+      terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+      baseLayerPicker: false,
+      geocoder: false,
+      homeButton: false,
+      sceneModePicker: false,
+      navigationHelpButton: false,
+      animation: false,
+      timeline: false,
+      fullscreenButton: false,
+      creditContainer: document.createElement('div'),
+      requestRenderMode: true,
     });
 
-    // UAV marker — driven by CallbackProperty (no flicker)
-    uavEntity = viewer.entities.add({
-      position: new Cesium.CallbackProperty(() => {
-        const p = points[parseInt(slider.value, 10)];
-        return Cesium.Cartesian3.fromDegrees(p.lon, p.lat, baseAlt + p.u);
-      }, false),
-      orientation: new Cesium.CallbackProperty(() => {
-        const p = points[parseInt(slider.value, 10)];
-        const pos = Cesium.Cartesian3.fromDegrees(p.lon, p.lat, baseAlt + p.u);
-        const hpr = new Cesium.HeadingPitchRoll(
-          Cesium.Math.toRadians(p.yaw   ?? 0),
-          Cesium.Math.toRadians(p.pitch ?? 0),
-          Cesium.Math.toRadians(p.roll  ?? 0)
-        );
-        return Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
-      }, false),
-      ellipsoid: {
-        radii: new Cesium.Cartesian3(300, 100, 100),
-        material: Cesium.Color.ORANGE.withAlpha(0.95),
-        outline: false,
-      },
+    const satelliteProvider = new Cesium.UrlTemplateImageryProvider({
+      url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      maximumLevel: 19,
+      credit: new Cesium.Credit('Tiles © Esri'),
     });
-  }
 
-  slider.addEventListener('input', () => {
-    if (points.length === 0) return;
-    const p = points[parseInt(slider.value, 10)];
-    const tSec = (p.t / 1e6).toFixed(1);
-    timeLabel.textContent = `${tSec}s  alt:${p.alt.toFixed(1)}m`;
-  });
+    viewer.imageryLayers.removeAll();
+    viewer.imageryLayers.addImageryProvider(satelliteProvider);
 
-  uploadBtn.addEventListener('click', async () => {
-    const file = fileInput.files[0];
-    if (!file) { status.textContent = 'Please select a .BIN file.'; return; }
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const colorMode = document.getElementById('colorMode');
+    const statusEl = document.getElementById('status');
+    const metricGrid = document.getElementById('metricGrid');
+    const warningList = document.getElementById('warningList');
+    const messageList = document.getElementById('messageList');
+    const samplingInfo = document.getElementById('samplingInfo');
+    const slider = document.getElementById('timeSlider');
+    const timeLabel = document.getElementById('timeLabel');
 
-    clearScene();
-    console.log('clearScene done, points:', points.length);
-    uploadBtn.disabled = true;
-    status.textContent = 'Uploading…';
+    let analysis = null;
+    let playbackPoints = [];
+    let pathEntities = [];
+    let uavEntity = null;
+    let altitudeChart = null;
+    let speedChart = null;
+    let accelerationChart = null;
 
-    const form = new FormData();
-    form.append('file', file);
+    const metricConfig = [
+      { key: 'flight_duration_s', label: 'Flight Duration', unit: 's', digits: 1 },
+      { key: 'total_distance_m', label: 'Total Distance', unit: 'm', digits: 1 },
+      { key: 'max_altitude_gain_m', label: 'Max Altitude Gain', unit: 'm', digits: 1 },
+      { key: 'max_horizontal_speed_mps', label: 'Max Horizontal Speed', unit: 'm/s', digits: 2 },
+      { key: 'max_vertical_speed_mps', label: 'Max Vertical Speed', unit: 'm/s', digits: 2 },
+      { key: 'max_acceleration_mps2', label: 'Max Acceleration', unit: 'm/s²', digits: 2 },
+    ];
 
-    origin = null;
-    let count = 0;
+    function setStatus(message, type = 'info') {
+      const palette = {
+        info: ['rgba(107, 227, 255, 0.08)', 'rgba(107, 227, 255, 0.18)', '#d3f7ff'],
+        success: ['rgba(105, 210, 157, 0.10)', 'rgba(105, 210, 157, 0.20)', '#d9ffeb'],
+        error: ['rgba(255, 123, 114, 0.12)', 'rgba(255, 123, 114, 0.24)', '#ffe2df'],
+      };
+      const [bg, border, text] = palette[type] || palette.info;
+      statusEl.textContent = message;
+      statusEl.style.background = bg;
+      statusEl.style.borderColor = border;
+      statusEl.style.color = text;
+    }
 
-    try {
-      const resp = await fetch('/api/upload/enu-stream', { method: 'POST', body: form });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
-        status.textContent = `Error: ${err.detail || resp.statusText}`;
-        uploadBtn.disabled = false;
+    function formatValue(value, digits = 2, unit = '') {
+      if (value === null || value === undefined || Number.isNaN(value)) {
+        return 'n/a';
+      }
+      return `${Number(value).toFixed(digits)} ${unit}`.trim();
+    }
+
+    function renderMetrics(metrics = {}, sampling = {}) {
+      metricGrid.innerHTML = metricConfig.map(item => `
+        <article class="metric-card">
+          <div class="tiny-label">${item.label}</div>
+          <span class="metric-value">${formatValue(metrics[item.key], item.digits, item.unit)}</span>
+          <div class="metric-meta"></div>
+        </article>
+      `).join('');
+
+      samplingInfo.textContent = `GPS: ${formatValue(sampling.gps_hz, 2, 'Hz')} | IMU: ${formatValue(sampling.imu_hz, 2, 'Hz')}`;
+    }
+
+    function renderWarnings(summary = {}) {
+      const warnings = [...(summary.warnings || []), ...(summary.anomalies || [])];
+      if (!warnings.length) {
+        warningList.innerHTML = '<span class="pill">No warnings detected</span>';
         return;
       }
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+      warningList.innerHTML = warnings
+        .map(item => `<span class="pill warning">${item}</span>`)
+        .join('');
+    }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop(); // keep incomplete last line
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const obj = JSON.parse(line);
-          if (obj.type === 'origin') {
-            origin = obj;
-          } else {
-            points.push(obj);
-            count++;
-            if (count % 100 === 0) {
-              status.textContent = `Loading… ${count} points`;
-            }
-          }
+    function renderMessages(rawPreview = {}) {
+      const items = rawPreview.available_messages || [];
+      if (!items.length) {
+        messageList.innerHTML = '<span class="pill">No messages</span>';
+        return;
+      }
+
+      messageList.innerHTML = items
+        .slice(0, 18)
+        .map(item => `<span class="pill">${item}</span>`)
+        .join('');
+    }
+
+    function clearScene() {
+      pathEntities.forEach(entity => viewer.entities.remove(entity));
+      pathEntities = [];
+
+      if (uavEntity) {
+        viewer.entities.remove(uavEntity);
+        uavEntity = null;
+      }
+
+      slider.max = 0;
+      slider.value = 0;
+      slider.disabled = true;
+      timeLabel.textContent = 't: - | alt: - | speed: -';
+    }
+
+    function getSpeedMap(speedSeries = []) {
+      return new Map(speedSeries.map(item => [Number(item.t).toFixed(3), item.value]));
+    }
+
+    function getMetricColor(value, min, max) {
+      if (!Number.isFinite(value) || !Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+        return Cesium.Color.fromCssColorString('#6be3ff');
+      }
+
+      const normalized = Math.min(1, Math.max(0, (value - min) / (max - min)));
+      const hue = (1 - normalized) * 0.62;
+      return Cesium.Color.fromHsl(hue, 0.82, 0.52, 0.95);
+    }
+
+    function buildTrajectory(trajectory, colorBy) {
+      clearScene();
+
+      const sourcePoints = trajectory?.points || [];
+      const points = sourcePoints.filter((point, index) => index === 0 || point.valid_segment_from_previous !== false);
+      playbackPoints = points;
+
+      if (!points.length) {
+        setStatus('No GPS trajectory points found in log.', 'error');
+        return;
+      }
+
+      const speedLookup = getSpeedMap(trajectory.speed_series || []);
+      const values = points.map((point, index) => {
+        if (colorBy === 'time') {
+          return index;
         }
+
+        const key = (Number(point.t) / 1e6).toFixed(3);
+        return speedLookup.get(key) ?? 0;
+      });
+      const minValue = Math.min(...values);
+      const maxValue = Math.max(...values);
+
+      for (let index = 1; index < points.length; index += 1) {
+        const prev = points[index - 1];
+        const current = points[index];
+        if (current.valid_segment_from_previous === false || prev.valid_segment_from_previous === false) {
+          continue;
+        }
+        const color = getMetricColor(values[index], minValue, maxValue);
+
+        const entity = viewer.entities.add({
+          polyline: {
+            positions: [
+              Cesium.Cartesian3.fromDegrees(Number(prev.lon), Number(prev.lat), Number(prev.alt)),
+              Cesium.Cartesian3.fromDegrees(Number(current.lon), Number(current.lat), Number(current.alt)),
+            ],
+            width: 5,
+            material: color,
+            clampToGround: false,
+          },
+        });
+        pathEntities.push(entity);
       }
 
-      if (buffer.trim()) {
-        const obj = JSON.parse(buffer);
-        if (obj.type !== 'origin') points.push(obj);
+      uavEntity = viewer.entities.add({
+        position: new Cesium.CallbackProperty(() => {
+          const idx = Number(slider.value);
+          const point = playbackPoints[idx] || playbackPoints[0];
+          return Cesium.Cartesian3.fromDegrees(Number(point.lon), Number(point.lat), Number(point.alt));
+        }, false),
+        orientation: new Cesium.CallbackProperty(() => {
+          const idx = Number(slider.value);
+          const point = playbackPoints[idx] || playbackPoints[0];
+          const pos = Cesium.Cartesian3.fromDegrees(Number(point.lon), Number(point.lat), Number(point.alt));
+          const hpr = new Cesium.HeadingPitchRoll(
+            Cesium.Math.toRadians(Number(point.yaw || 0)),
+            Cesium.Math.toRadians(Number(point.pitch || 0)),
+            Cesium.Math.toRadians(Number(point.roll || 0))
+          );
+          return Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
+        }, false),
+        ellipsoid: {
+          radii: new Cesium.Cartesian3(240, 90, 90),
+          material: Cesium.Color.fromCssColorString('#f4c95d').withAlpha(0.95),
+          outline: false,
+        },
+      });
+
+      slider.max = points.length - 1;
+      slider.value = 0;
+      slider.disabled = false;
+
+      const first = points[0];
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(Number(first.lon), Number(first.lat), Number(first.alt) + 250),
+        orientation: {
+          heading: 0,
+          pitch: Cesium.Math.toRadians(-40),
+          roll: 0,
+        },
+        duration: 1.8,
+      });
+      viewer.scene.requestRender();
+      updateCurrentSample();
+    }
+
+    function sampleSeries(series, maxPoints = 240) {
+      if (!series || series.length <= maxPoints) {
+        return series || [];
       }
 
-    } catch (e) {
-      status.textContent = `Network error: ${e.message}`;
-      uploadBtn.disabled = false;
-      return;
+      const step = Math.ceil(series.length / maxPoints);
+      return series.filter((_, index) => index % step === 0 || index === series.length - 1);
     }
 
-    console.log('stream done, points:', points.length, 'origin:', origin);
-
-    if (points.length === 0) {
-      status.textContent = 'No GPS points found in log.';
-      uploadBtn.disabled = false;
-      return;
+    function destroyChart(chart) {
+      if (chart) {
+        chart.destroy();
+      }
     }
 
-    buildEntities();
-    console.log('buildEntities done');
-    viewer.scene.requestRender();
+    function makeChart(canvasId, labels, datasets) {
+      return new Chart(document.getElementById(canvasId), {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { intersect: false, mode: 'index' },
+          plugins: {
+            legend: { labels: { color: '#eef6f8' } },
+          },
+          scales: {
+            x: {
+              ticks: { color: '#8eb1bc' },
+              grid: { color: 'rgba(255,255,255,0.06)' },
+            },
+            y: {
+              ticks: { color: '#8eb1bc' },
+              grid: { color: 'rgba(255,255,255,0.06)' },
+            },
+          },
+        },
+      });
+    }
 
-    slider.max = points.length - 1;
-    slider.value = 0;
-    slider.disabled = false;
+    function renderCharts(series = {}) {
+      const altitudeSeries = sampleSeries(series.altitude || []);
+      const speedSeries = sampleSeries(series.imu_speed || []);
+      const accelerationSeries = sampleSeries(series.imu_acceleration || []);
 
-    const p0 = points[0];
-    viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(p0.lon, p0.lat, p0.alt + 300),
-      orientation: { heading: 0, pitch: Cesium.Math.toRadians(-45), roll: 0 },
-      duration: 2,
+      destroyChart(altitudeChart);
+      destroyChart(speedChart);
+      destroyChart(accelerationChart);
+
+      altitudeChart = makeChart(
+        'altitudeChart',
+        altitudeSeries.map(item => item.t),
+        [
+          {
+            label: 'Altitude (m)',
+            data: altitudeSeries.map(item => item.value),
+            borderColor: '#6be3ff',
+            backgroundColor: 'rgba(107, 227, 255, 0.18)',
+            tension: 0.28,
+            pointRadius: 0,
+          },
+        ]
+      );
+
+      speedChart = makeChart(
+        'speedChart',
+        speedSeries.map(item => item.t),
+        [
+          {
+            label: 'Horizontal speed (m/s)',
+            data: speedSeries.map(item => item.horizontal),
+            borderColor: '#f4c95d',
+            backgroundColor: 'rgba(244, 201, 93, 0.18)',
+            tension: 0.24,
+            pointRadius: 0,
+          },
+          {
+            label: 'Vertical speed (m/s)',
+            data: speedSeries.map(item => item.vertical),
+            borderColor: '#69d29d',
+            backgroundColor: 'rgba(105, 210, 157, 0.16)',
+            tension: 0.24,
+            pointRadius: 0,
+          },
+        ]
+      );
+
+      accelerationChart = makeChart(
+        'accelerationChart',
+        accelerationSeries.map(item => item.t),
+        [
+          {
+            label: 'Acceleration (m/s²)',
+            data: accelerationSeries.map(item => item.value),
+            borderColor: '#ff7b72',
+            backgroundColor: 'rgba(255, 123, 114, 0.18)',
+            tension: 0.18,
+            pointRadius: 0,
+          },
+        ]
+      );
+    }
+
+    function updateCurrentSample() {
+      const points = playbackPoints || [];
+      if (!points.length) {
+        timeLabel.textContent = 't: - | alt: - | speed: -';
+        return;
+      }
+
+      const idx = Number(slider.value);
+      const point = points[idx] || points[0];
+      const timeSeconds = Number(point.t) / 1e6;
+      const speedLookup = getSpeedMap(analysis.trajectory.speed_series || []);
+      const speed = speedLookup.get(timeSeconds.toFixed(3)) ?? 0;
+      timeLabel.textContent = `t: ${timeSeconds.toFixed(2)} s | alt: ${Number(point.alt).toFixed(1)} m | speed: ${Number(speed).toFixed(2)} m/s`;
+      viewer.scene.requestRender();
+    }
+
+    async function analyzeFlight() {
+      const file = fileInput.files[0];
+      if (!file) {
+        setStatus('Select a `.BIN` file first.', 'error');
+        return;
+      }
+
+      uploadBtn.disabled = true;
+      setStatus('Parsing telemetry, converting GPS to ENU, and computing mission metrics...', 'info');
+
+      const form = new FormData();
+      form.append('file', file);
+
+      try {
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          body: form,
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          setStatus(payload.detail || 'Failed to analyze flight log.', 'error');
+          return;
+        }
+
+        analysis = payload;
+        renderMetrics(payload.metrics, payload.sampling);
+        renderWarnings(payload.summary);
+        renderMessages(payload.raw_preview);
+        renderCharts(payload.series);
+        buildTrajectory(payload.trajectory, colorMode.value);
+
+        const warningCount = (payload.summary?.warnings || []).length;
+        const anomalyCount = (payload.summary?.anomalies || []).length;
+        setStatus(
+          `Analysis ready: ${payload.trajectory.points.length} trajectory points, ${warningCount} warnings, ${anomalyCount} anomalies.`,
+          'success'
+        );
+      } catch (error) {
+        setStatus(`Network error: ${error.message}`, 'error');
+      } finally {
+        uploadBtn.disabled = false;
+      }
+    }
+
+    slider.addEventListener('input', updateCurrentSample);
+    colorMode.addEventListener('change', () => {
+      if (analysis) {
+        buildTrajectory(analysis.trajectory, colorMode.value);
+      }
     });
+    uploadBtn.addEventListener('click', analyzeFlight);
 
-    status.textContent = `Loaded ${points.length} GPS points.`;
-    uploadBtn.disabled = false;
-  });
-</script>
+    renderMetrics();
+    renderMessages();
+  </script>
 </body>
 </html>

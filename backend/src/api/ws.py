@@ -13,6 +13,11 @@ router = APIRouter(tags=["chat"])
 @router.websocket("/ws/chat")
 async def chat(ws: WebSocket):
     await ws.accept()
+    if not settings.gemini_api_key:
+        await ws.send_text("AI assistant is not configured. Set GEMINI_API_KEY in backend/.env.")
+        await ws.close()
+        return
+
     client = genai.Client(api_key=settings.gemini_api_key)
 
     logger.info("WebSocket connection established")

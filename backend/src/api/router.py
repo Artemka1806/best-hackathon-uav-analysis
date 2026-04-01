@@ -7,6 +7,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from core.utils import sanitize
+from services.flight_analysis import analyze_flight_log
 from services.flight_parser import parse_flight_log, convert_gps_to_enu
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,32 @@ async def upload_file(file: UploadFile = File(...)):
         "filename": file.filename,
         "message_types": msg_types,
         "total_types": len(msg_types),
+    }
+
+
+@router.post("/analyze")
+async def analyze_file(file: UploadFile = File(...)):
+    logger.info("Received file for full analysis: %s", file.filename)
+
+    if not file.filename or not file.filename.lower().endswith(".bin"):
+        raise HTTPException(status_code=400, detail="Only .BIN flight log files are supported")
+
+    data = await file.read()
+    try:
+        parsed = sanitize(parse_flight_log(data))
+        result = analyze_flight_log(data, parsed=parsed)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Unexpected analysis failure")
+        raise HTTPException(status_code=500, detail="Failed to analyze flight log") from exc
+
+    path = _save_parsed(file.filename, parsed)
+    _parsed_logs[file.filename] = path
+
+    return {
+        "filename": file.filename,
+        **result,
     }
 
 
