@@ -4,9 +4,10 @@ import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Query
+from fastapi.responses import StreamingResponse
 
 from core.utils import sanitize
-from services.flight_parser import parse_flight_log
+from services.flight_parser import parse_flight_log, convert_gps_to_enu
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,31 @@ async def upload_file(file: UploadFile = File(...)):
         "message_types": msg_types,
         "total_types": len(msg_types),
     }
+
+
+@router.post("/upload/enu-stream")
+async def upload_enu_stream(file: UploadFile = File(...)):
+    logger.info("Received file for ENU stream: %s", file.filename)
+
+    if not file.filename or not file.filename.lower().endswith(".bin"):
+        raise HTTPException(status_code=400, detail="Only .BIN flight log files are supported")
+
+    data = await file.read()
+
+    try:
+        enu_data = convert_gps_to_enu(data)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+
+    def generate():
+        origin = enu_data["origin"]
+        yield json.dumps({"type": "origin", "lat": origin["lat"], "lon": origin["lon"], "alt": origin["alt"]}) + "\n"
+        for pt in enu_data["points"]:
+            yield json.dumps({"e": pt["e"], "n": pt["n"], "u": pt["u"],
+                              "lat": pt["lat"], "lon": pt["lon"], "alt": pt["alt"], "t": pt["t"],
+                              "roll": pt.get("roll", 0), "pitch": pt.get("pitch", 0), "yaw": pt.get("yaw", 0)}) + "\n"
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
 @router.get("/logs/{filename}/messages")
