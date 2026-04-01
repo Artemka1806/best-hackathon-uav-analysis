@@ -1,13 +1,18 @@
 # Set the minimum required version of CMake.
 cmake_minimum_required(VERSION 3.15)
 
-# Name the project.
 # Set C++ standard to 17, which is a good baseline for modern C++.
 # pybind11 requires at least C++11.
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(flight_parcer LANGUAGES CXX)
+
+# Force CMake to find and use Python 3.14 specifically before loading pybind11
+find_package(Python 3.14 COMPONENTS Interpreter Development REQUIRED)
+
+# Tell pybind11 to use the modern FindPython module so it respects the 3.14 version found above
+set(PYBIND11_FINDPYTHON ON CACHE BOOL "")
 
 # Include FetchContent for managing dependencies.
 include(FetchContent)
@@ -44,6 +49,4 @@ pybind11_add_module(flight_parcer main.cpp)
 # --- Link Dependencies ---
 # For Eigen, we need to add its include directory to our target.
 # pybind11 handles its own include directories automatically.
-# We use PRIVATE because Eigen is a header-only library and its headers
-# are only needed during the compilation of our module.
 target_include_directories(flight_parcer PRIVATE ${eigen_SOURCE_DIR})
