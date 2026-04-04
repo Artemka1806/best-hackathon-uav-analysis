@@ -2,6 +2,7 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 #include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 #include <algorithm>
 #include <cmath>
@@ -50,8 +51,8 @@ struct GpsSample {
     double alt_m{};
 };
 
-struct GpsSegmentAnalysis {
-    std::vector<bool> valid_from_previous;
+struct CleanGpsData {
+    std::vector<GpsSample> samples;
     py::list warnings;
     double total_distance_m{};
 };
@@ -68,17 +69,6 @@ struct EcefPoint {
     double y{};
     double z{};
 };
-
-int add(int i, int j) {
-    return i + j;
-}
-
-Eigen::MatrixXd add_matrices(const Eigen::MatrixXd& m1, const Eigen::MatrixXd& m2) {
-    if (m1.rows() != m2.rows() || m1.cols() != m2.cols()) {
-        throw std::invalid_argument("Input matrices must have the same dimensions");
-    }
-    return m1 + m2;
-}
 
 template <typename T>
 T read_val(const char*& ptr) {
@@ -372,59 +362,68 @@ std::tuple<double, double, double> ecef_delta_to_enu(
     return {e, n, u};
 }
 
-GpsSegmentAnalysis analyze_gps_segments(const std::vector<GpsSample>& gps_samples) {
-    GpsSegmentAnalysis result;
-    result.valid_from_previous.assign(gps_samples.size(), true);
-    if (gps_samples.size() < 2) {
+/**
+ * @brief Self-healing filter for physically impossible GPS leaps (glitches/multipath).
+ * * Rejects jumps requiring absurd velocities (e.g. > Mach 1 for typical ArduPilot vehicles).
+ * If consecutive bad points are found, the filter assumes the *reference* point was flawed
+ * (e.g., initial sticky glitch) and resets the trajectory to the current stable point.
+ * * @param raw_samples Unfiltered GPS samples.
+ * @return CleanGpsData A structure containing the clean samples array and anomaly warnings.
+ */
+CleanGpsData clean_gps_anomalies(const std::vector<GpsSample>& raw_samples) {
+    CleanGpsData result;
+    if (raw_samples.empty()) {
         return result;
     }
 
-    double last_valid_speed_mps = 0.0;
-    double last_valid_distance_m = 0.0;
-    size_t last_valid_index = 0;
+    result.samples.push_back(raw_samples[0]);
+    int consecutive_drops = 0;
 
-    for (size_t i = 1; i < gps_samples.size(); ++i) {
-        const auto& prev = gps_samples[last_valid_index];
-        const auto& current = gps_samples[i];
+    for (size_t i = 1; i < raw_samples.size(); ++i) {
+        const auto& current = raw_samples[i];
+        const auto& prev = result.samples.back();
         double dt = current.time_s - prev.time_s;
-        if (dt <= 0.0) {
-            result.valid_from_previous[i] = false;
+        
+        // Ignore duplicate timestamps or unrealistic high-frequency jitter (> 20Hz)
+        if (dt < 0.05) {
             continue;
         }
 
         double distance_m = haversine_m(prev.lat_deg, prev.lon_deg, current.lat_deg, current.lon_deg);
         double speed_mps = distance_m / dt;
 
-        double speed_threshold_mps = 300.0;
-        double distance_threshold_m = 120.0;
-        if (last_valid_speed_mps > 0.0) {
-            speed_threshold_mps = std::max(speed_threshold_mps, last_valid_speed_mps * 4.0 + 15.0);
-        }
-        if (last_valid_distance_m > 0.0) {
-            distance_threshold_m = std::max(distance_threshold_m, last_valid_distance_m * 5.0 + 25.0);
-        }
+        // Absolute physical threshold (approx 350 m/s ~ Mach 1).
+        // Any velocity higher than this over any time gap is mathematically a glitch for a standard UAV.
+        bool impossible_jump = speed_mps > 350.0;
 
-        bool impossible_jump =
-            distance_m > distance_threshold_m &&
-            speed_mps > speed_threshold_mps &&
-            dt < 5.0;
-
-        result.valid_from_previous[i] = !impossible_jump;
         if (impossible_jump) {
-            std::ostringstream warning;
-            warning
-                << "Skipped GPS jump at t=" << round3(current.time_s)
-                << "s: " << round3(distance_m)
-                << " m in " << round3(dt)
-                << " s (" << round3(speed_mps) << " m/s)";
-            result.warnings.append(warning.str());
+            consecutive_drops++;
+            
+            // If we get 5 impossible jumps in a row, our origin/reference point is likely the actual glitch.
+            if (consecutive_drops > 5) {
+                std::ostringstream warning;
+                warning << "Detected sticky GPS glitch. Trajectory reference reset at t=" 
+                        << round3(current.time_s) << "s";
+                result.warnings.append(warning.str());
+                
+                result.samples.clear();
+                result.samples.push_back(current);
+                result.total_distance_m = 0.0;
+                consecutive_drops = 0;
+            } else {
+                std::ostringstream warning;
+                warning << "Filtered GPS glitch at t=" << round3(current.time_s)
+                        << "s: Jump of " << round3(distance_m)
+                        << " m in " << round3(dt)
+                        << " s (" << round3(speed_mps) << " m/s)";
+                result.warnings.append(warning.str());
+            }
             continue;
         }
 
+        consecutive_drops = 0;
         result.total_distance_m += distance_m;
-        last_valid_speed_mps = speed_mps;
-        last_valid_distance_m = distance_m;
-        last_valid_index = i;
+        result.samples.push_back(current);
     }
 
     return result;
@@ -433,7 +432,7 @@ GpsSegmentAnalysis analyze_gps_segments(const std::vector<GpsSample>& gps_sample
 const FormatDef* find_message(const std::unordered_map<uint8_t, FormatDef>& formats, const std::vector<std::string>& candidates) {
     for (const auto& candidate : candidates) {
         for (const auto& [type, fmt] : formats) {
-            if (fmt.name == candidate || fmt.name.rfind(candidate, 0) == 0) {
+            if (fmt.name == candidate) {
                 return &fmt;
             }
         }
@@ -448,6 +447,10 @@ std::vector<GpsSample> build_gps_samples(const FormatDef& gps_fmt) {
     if (lat_idx < 0 || lon_idx < 0 || alt_idx < 0) {
         throw std::runtime_error("GPS message missing Lat/Lng/Alt columns");
     }
+
+    double lat_mult = (gps_fmt.format[lat_idx] == 'i' || gps_fmt.format[lat_idx] == 'L') ? 1e-7 : 1.0;
+    double lon_mult = (gps_fmt.format[lon_idx] == 'i' || gps_fmt.format[lon_idx] == 'L') ? 1e-7 : 1.0;
+    double alt_mult = (gps_fmt.format[alt_idx] == 'i' || gps_fmt.format[alt_idx] == 'L') ? 1e-2 : 1.0;
 
     std::vector<double> time_series = extract_time_series_seconds(gps_fmt);
     if (time_series.empty()) {
@@ -471,11 +474,20 @@ std::vector<GpsSample> build_gps_samples(const FormatDef& gps_fmt) {
             continue;
         }
 
+        double lat = py_obj_to_double(gps_fmt.columns_data[lat_idx][i]) * lat_mult;
+        double lon = py_obj_to_double(gps_fmt.columns_data[lon_idx][i]) * lon_mult;
+
+        // Ignore points without a valid GPS fix (Null Island bug)
+        // Prevents the impossible trajectory jumps
+        if (std::abs(lat) < 1e-5 && std::abs(lon) < 1e-5) {
+            continue;
+        }
+
         samples.push_back({
             time_s,
-            py_obj_to_double(gps_fmt.columns_data[lat_idx][i]) * 1e-7,
-            py_obj_to_double(gps_fmt.columns_data[lon_idx][i]) * 1e-7,
-            py_obj_to_double(gps_fmt.columns_data[alt_idx][i])
+            lat,
+            lon,
+            py_obj_to_double(gps_fmt.columns_data[alt_idx][i]) * alt_mult
         });
         last_time = time_s;
     }
@@ -497,6 +509,10 @@ std::vector<AttSample> build_att_samples(const FormatDef* att_fmt) {
     if (roll_idx < 0 || pitch_idx < 0 || yaw_idx < 0) {
         return {};
     }
+
+    double roll_mult = (att_fmt->format[roll_idx] == 'h' || att_fmt->format[roll_idx] == 'i' || att_fmt->format[roll_idx] == 'L') ? 1e-2 : 1.0;
+    double pitch_mult = (att_fmt->format[pitch_idx] == 'h' || att_fmt->format[pitch_idx] == 'i' || att_fmt->format[pitch_idx] == 'L') ? 1e-2 : 1.0;
+    double yaw_mult = (att_fmt->format[yaw_idx] == 'h' || att_fmt->format[yaw_idx] == 'i' || att_fmt->format[yaw_idx] == 'L') ? 1e-2 : 1.0;
 
     std::vector<double> time_series = extract_time_series_seconds(*att_fmt);
     if (time_series.empty()) {
@@ -522,9 +538,9 @@ std::vector<AttSample> build_att_samples(const FormatDef* att_fmt) {
 
         samples.push_back({
             time_s,
-            py_obj_to_double(att_fmt->columns_data[roll_idx][i]),
-            py_obj_to_double(att_fmt->columns_data[pitch_idx][i]),
-            py_obj_to_double(att_fmt->columns_data[yaw_idx][i])
+            py_obj_to_double(att_fmt->columns_data[roll_idx][i]) * roll_mult,
+            py_obj_to_double(att_fmt->columns_data[pitch_idx][i]) * pitch_mult,
+            py_obj_to_double(att_fmt->columns_data[yaw_idx][i]) * yaw_mult
         });
         last_time = time_s;
     }
@@ -567,19 +583,16 @@ std::tuple<double, double, double> body_acc_to_enu_linear(
     double pitch = pitch_deg * M_PI / 180.0;
     double yaw = yaw_deg * M_PI / 180.0;
 
-    double cr = std::cos(roll);
-    double sr = std::sin(roll);
-    double cp = std::cos(pitch);
-    double sp = std::sin(pitch);
-    double cy = std::cos(yaw);
-    double sy = std::sin(yaw);
+    Eigen::AngleAxisd rollAngle(roll, Eigen::Vector3d::UnitX());
+    Eigen::AngleAxisd pitchAngle(pitch, Eigen::Vector3d::UnitY());
+    Eigen::AngleAxisd yawAngle(yaw, Eigen::Vector3d::UnitZ());
 
-    double a_n = (cp * cy) * ax + (sr * sp * cy - cr * sy) * ay + (cr * sp * cy + sr * sy) * az;
-    double a_e = (cp * sy) * ax + (sr * sp * sy + cr * cy) * ay + (cr * sp * sy - sr * cy) * az;
-    double a_d = (-sp) * ax + (sr * cp) * ay + (cr * cp) * az;
+    Eigen::Quaterniond q = yawAngle * pitchAngle * rollAngle;
+    Eigen::Vector3d acc_body(ax, ay, az);
+    Eigen::Vector3d acc_ned = q * acc_body;
 
-    double linear_d = a_d - kGravityMps2;
-    return {a_e, a_n, -linear_d};
+    double linear_d = acc_ned.z() + kGravityMps2;
+    return {acc_ned.y(), acc_ned.x(), -linear_d};
 }
 
 std::vector<ImuSample> build_imu_samples(const FormatDef& imu_fmt, const std::vector<AttSample>& att_samples) {
@@ -630,8 +643,7 @@ std::vector<ImuSample> build_imu_samples(const FormatDef& imu_fmt, const std::ve
 
 py::dict build_trajectory_payload(
     const std::vector<GpsSample>& gps_samples,
-    const std::vector<AttSample>& att_samples,
-    const std::vector<bool>* valid_segments = nullptr
+    const std::vector<AttSample>& att_samples
 ) {
     py::list points;
     py::list speed_series;
@@ -663,20 +675,17 @@ py::dict build_trajectory_payload(
         point["roll"] = att.roll_deg;
         point["pitch"] = att.pitch_deg;
         point["yaw"] = att.yaw_deg;
-        point["valid_segment_from_previous"] = !valid_segments || i == 0 ? true : (*valid_segments)[i];
+        point["valid_segment_from_previous"] = true; // Samples passed here are pre-filtered
         points.append(point);
 
         if (i > 0) {
             double dt = sample.time_s - previous_time;
-            bool segment_valid = !valid_segments || (*valid_segments)[i];
-            if (dt > 0.0 && segment_valid) {
+            if (dt > 0.0) {
                 double de = e - previous_e;
                 double dn = n - previous_n;
                 double du = u - previous_u;
                 double speed = std::sqrt(de * de + dn * dn + du * du) / dt;
                 speed_series.append(py::dict("t"_a = round3(sample.time_s), "value"_a = round3(speed)));
-            } else if (dt > 0.0) {
-                speed_series.append(py::dict("t"_a = round3(sample.time_s), "value"_a = 0.0));
             }
         }
 
@@ -700,10 +709,11 @@ py::dict build_trajectory_payload(
 
 py::dict build_altitude_series(const std::vector<GpsSample>& gps_samples) {
     py::list altitude;
+    double start_alt = gps_samples.front().alt_m;
     for (const auto& sample : gps_samples) {
         altitude.append(py::dict(
             "t"_a = round3(sample.time_s),
-            "value"_a = round3(sample.alt_m)
+            "value"_a = round3(sample.alt_m - start_alt)
         ));
     }
     py::dict result;
@@ -711,16 +721,108 @@ py::dict build_altitude_series(const std::vector<GpsSample>& gps_samples) {
     return result;
 }
 
-py::dict analyze_imu_series(const std::vector<ImuSample>& imu_samples) {
+/**
+ * @brief Linear Kalman Filter for fusing ENU IMU accelerations with ENU GPS positions.
+ * * This filter maintains a 6D state vector consisting of 3D position and 3D velocity
+ * in the East-North-Up (ENU) coordinate frame.
+ * * @warning The noise covariance matrices (Q and R) are initialized with heuristic defaults.
+ * For optimal performance, these should be tuned based on the specific sensors used in the drone.
+ */
+class PositionVelocityKF {
+public:
+    /**
+     * @brief Constructor initializes the filter matrices.
+     * * @param initial_pos Initial position vector in ENU [e, n, u].
+     */
+    PositionVelocityKF(const Eigen::Vector3d& initial_pos) {
+        x_.setZero();
+        x_.head<3>() = initial_pos;
+
+        P_.setIdentity();
+        P_ *= 10.0;
+
+        F_.setIdentity();
+        B_.setZero();
+
+        H_.setZero();
+        H_.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+
+        Q_.setIdentity();
+        Q_.block<3, 3>(0, 0) *= 0.05;
+        Q_.block<3, 3>(3, 3) *= 0.1;
+
+        R_.setIdentity();
+        R_ *= 2.5; 
+    }
+
+    /**
+     * @brief Predicts the next state using IMU acceleration data.
+     * * @param dt Time delta since the last prediction in seconds.
+     * @param acc_enu Acceleration vector in ENU frame [ae, an, au].
+     */
+    void predict(double dt, const Eigen::Vector3d& acc_enu) {
+        F_.block<3, 3>(0, 3) = Eigen::Matrix3d::Identity() * dt;
+
+        B_.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity() * (0.5 * dt * dt);
+        B_.block<3, 3>(3, 0) = Eigen::Matrix3d::Identity() * dt;
+
+        x_ = F_ * x_ + B_ * acc_enu;
+        P_ = F_ * P_ * F_.transpose() + Q_;
+    }
+
+    /**
+     * @brief Updates the state estimation using GPS measurement data.
+     * * @param pos_enu Measured position vector in ENU frame [e, n, u].
+     */
+    void update(const Eigen::Vector3d& pos_enu) {
+        Eigen::Vector3d y = pos_enu - H_ * x_;
+        Eigen::Matrix3d S = H_ * P_ * H_.transpose() + R_;
+        
+        Eigen::Matrix<double, 6, 3> K = P_ * H_.transpose() * S.inverse();
+
+        x_ = x_ + K * y;
+        P_ = (Eigen::Matrix<double, 6, 6>::Identity() - K * H_) * P_;
+    }
+
+    /**
+     * @brief Retrieves the current position estimate.
+     * @return Eigen::Vector3d Current [e, n, u] position.
+     */
+    Eigen::Vector3d get_position() const { return x_.head<3>(); }
+
+    /**
+     * @brief Retrieves the current velocity estimate.
+     * @return Eigen::Vector3d Current [ve, vn, vu] velocity.
+     */
+    Eigen::Vector3d get_velocity() const { return x_.tail<3>(); }
+
+private:
+    Eigen::Matrix<double, 6, 1> x_;
+    Eigen::Matrix<double, 6, 6> P_;
+    Eigen::Matrix<double, 6, 6> F_;
+    Eigen::Matrix<double, 6, 3> B_;
+    Eigen::Matrix<double, 3, 6> H_;
+    Eigen::Matrix<double, 6, 6> Q_;
+    Eigen::Matrix<double, 3, 3> R_;
+};
+
+/**
+ * @brief Fuses IMU and GPS data to analyze speeds and accelerations.
+ * * Uses a Kalman Filter to prevent drift from double integration. Uses
+ * trapezoidal integration internally to satisfy hackathon MVP requirements.
+ * * @param imu_samples Vector of IMU samples.
+ * @param gps_samples Vector of CLEANED GPS samples for position updates.
+ * @return py::dict A dictionary containing speed series, acceleration series, and max values.
+ */
+py::dict analyze_imu_series(const std::vector<ImuSample>& imu_samples, const std::vector<GpsSample>& gps_samples) {
     py::list acceleration_series;
     py::list speed_series;
+    py::list altitude_series; // Added for high-res KF altitude
 
-    double ve = 0.0;
-    double vn = 0.0;
-    double vu = 0.0;
     double max_h_speed = 0.0;
     double max_v_speed = 0.0;
     double max_acc = 0.0;
+    double max_alt = 0.0; // Added to track KF max altitude
 
     auto magnitude = [](const ImuSample& sample) {
         return std::sqrt(sample.acc_e * sample.acc_e + sample.acc_n * sample.acc_n + sample.acc_u * sample.acc_u);
@@ -728,13 +830,22 @@ py::dict analyze_imu_series(const std::vector<ImuSample>& imu_samples) {
 
     acceleration_series.append(py::dict(
         "t"_a = std::round(imu_samples.front().time_s * 1000.0) / 1000.0,
-        "value"_a = round3(magnitude(imu_samples.front()))
+        "value"_a = round3(imu_samples.front().acc_u)
     ));
     speed_series.append(py::dict(
         "t"_a = round3(imu_samples.front().time_s),
         "horizontal"_a = 0.0,
         "vertical"_a = 0.0
     ));
+    altitude_series.append(py::dict(
+        "t"_a = round3(imu_samples.front().time_s),
+        "value"_a = 0.0
+    ));
+
+    EcefPoint origin_ecef = geodetic_to_ecef(gps_samples.front().lat_deg, gps_samples.front().lon_deg, gps_samples.front().alt_m);
+    PositionVelocityKF kf(Eigen::Vector3d::Zero());
+    
+    size_t gps_idx = 0;
 
     for (size_t i = 1; i < imu_samples.size(); ++i) {
         const ImuSample& prev = imu_samples[i - 1];
@@ -744,35 +855,58 @@ py::dict analyze_imu_series(const std::vector<ImuSample>& imu_samples) {
             continue;
         }
 
-        ve += 0.5 * (prev.acc_e + current.acc_e) * dt;
-        vn += 0.5 * (prev.acc_n + current.acc_n) * dt;
-        vu += 0.5 * (prev.acc_u + current.acc_u) * dt;
+        // Apply trapezoidal integration for acceleration input (satisfies hackathon MVP requirement)
+        Eigen::Vector3d acc_enu(
+            (prev.acc_e + current.acc_e) * 0.5,
+            (prev.acc_n + current.acc_n) * 0.5,
+            (prev.acc_u + current.acc_u) * 0.5
+        );
+        
+        kf.predict(dt, acc_enu);
 
-        double h_speed = std::sqrt(ve * ve + vn * vn);
-        double v_speed = std::abs(vu);
+        // Process any GPS measurements that arrived during this IMU interval
+        while (gps_idx < gps_samples.size() && gps_samples[gps_idx].time_s <= current.time_s) {
+            const auto& gps = gps_samples[gps_idx];
+            EcefPoint point_ecef = geodetic_to_ecef(gps.lat_deg, gps.lon_deg, gps.alt_m);
+            auto [e, n, u] = ecef_delta_to_enu(gps_samples.front().lat_deg, gps_samples.front().lon_deg, origin_ecef, point_ecef);
+            kf.update(Eigen::Vector3d(e, n, u));
+            gps_idx++;
+        }
+
+        Eigen::Vector3d vel = kf.get_velocity();
+        double h_speed = std::sqrt(vel.x() * vel.x() + vel.y() * vel.y());
+        double v_speed = vel.z(); // Removed std::abs to preserve flight direction (positive=up, negative=down)
         double acc_mag = magnitude(current);
+        double current_alt = kf.get_position().z();
 
         max_h_speed = std::max(max_h_speed, h_speed);
-        max_v_speed = std::max(max_v_speed, v_speed);
+        max_v_speed = std::max(max_v_speed, std::abs(v_speed)); // Metric remains absolute
         max_acc = std::max(max_acc, acc_mag);
+        max_alt = std::max(max_alt, current_alt);
 
         speed_series.append(py::dict(
             "t"_a = round3(current.time_s),
             "horizontal"_a = round3(h_speed),
-            "vertical"_a = round3(v_speed)
+            "vertical"_a = round3(v_speed) // Signed speed for the chart
         ));
         acceleration_series.append(py::dict(
             "t"_a = round3(current.time_s),
-            "value"_a = round3(acc_mag)
+            "value"_a = round3(current.acc_u)
+        ));
+        altitude_series.append(py::dict(
+            "t"_a = round3(current.time_s),
+            "value"_a = round3(current_alt) // High-res fused altitude
         ));
     }
 
     py::dict result;
     result["speed_series"] = speed_series;
     result["acceleration_series"] = acceleration_series;
+    result["altitude_series"] = altitude_series;
     result["max_horizontal_speed_mps"] = round3(max_h_speed);
     result["max_vertical_speed_mps"] = round3(max_v_speed);
     result["max_acceleration_mps2"] = round3(max_acc);
+    result["max_altitude_gain_m"] = round3(max_alt);
     result["sampling_hz"] = sampling_hz_or_none([&]() {
         std::vector<double> times;
         times.reserve(imu_samples.size());
@@ -1145,36 +1279,47 @@ py::dict parse_ardupilot_bin(py::bytes data) {
 
 py::dict convert_gps_to_enu(py::bytes data) {
     std::string_view buf = data;
-    auto formats = collect_formats(buf, std::set<std::string>{"GPS", "ATT"});
+    auto formats = collect_formats(buf, std::set<std::string>{"GPS", "GPS2", "ATT", "AHR2"});
 
-    const FormatDef* gps_fmt = find_message(formats, {"GPS"});
+    const FormatDef* gps_fmt = find_message(formats, {"GPS", "GPS2"});
     if (!gps_fmt) {
         throw std::runtime_error("No GPS messages found in log");
     }
 
-    const FormatDef* att_fmt = find_message(formats, {"ATT"});
-    std::vector<GpsSample> gps_samples = build_gps_samples(*gps_fmt);
+    const FormatDef* att_fmt = find_message(formats, {"ATT", "AHR2"});
+    std::vector<GpsSample> raw_gps = build_gps_samples(*gps_fmt);
+    CleanGpsData clean_gps = clean_gps_anomalies(raw_gps);
+    
+    if (clean_gps.samples.empty()) {
+        throw std::runtime_error("No valid GPS samples left after filtering anomalies");
+    }
+
     std::vector<AttSample> att_samples = build_att_samples(att_fmt);
-    GpsSegmentAnalysis gps_segment_analysis = analyze_gps_segments(gps_samples);
-    return build_trajectory_payload(gps_samples, att_samples, &gps_segment_analysis.valid_from_previous);
+    return build_trajectory_payload(clean_gps.samples, att_samples);
 }
 
 py::dict analyze_flight_log(py::bytes data) {
     std::string_view buf = data;
-    auto formats = collect_formats(buf, std::set<std::string>{"GPS", "ATT", "IMU", "IMU2", "IMU3"});
+    auto formats = collect_formats(buf, std::set<std::string>{"GPS", "GPS2", "ATT", "AHR2", "IMU", "IMU2", "IMU3"});
 
-    const FormatDef* gps_fmt = find_message(formats, {"GPS"});
+    const FormatDef* gps_fmt = find_message(formats, {"GPS", "GPS2"});
     if (!gps_fmt) {
         throw std::runtime_error("No GPS message found in log");
     }
 
-    const FormatDef* att_fmt = find_message(formats, {"ATT"});
+    const FormatDef* att_fmt = find_message(formats, {"ATT", "AHR2"});
     const FormatDef* imu_fmt = find_message(formats, {"IMU", "IMU2", "IMU3"});
 
-    std::vector<GpsSample> gps_samples = build_gps_samples(*gps_fmt);
+    std::vector<GpsSample> raw_gps = build_gps_samples(*gps_fmt);
+    CleanGpsData clean_gps = clean_gps_anomalies(raw_gps);
+    const std::vector<GpsSample>& gps_samples = clean_gps.samples;
+
+    if (gps_samples.empty()) {
+        throw std::runtime_error("No valid GPS samples left after filtering anomalies");
+    }
+
     std::vector<AttSample> att_samples = build_att_samples(att_fmt);
-    GpsSegmentAnalysis gps_segment_analysis = analyze_gps_segments(gps_samples);
-    py::dict trajectory = build_trajectory_payload(gps_samples, att_samples, &gps_segment_analysis.valid_from_previous);
+    py::dict trajectory = build_trajectory_payload(gps_samples, att_samples);
 
     double altitude_gain_m = 0.0;
     double start_alt_m = gps_samples.front().alt_m;
@@ -1189,19 +1334,27 @@ py::dict analyze_flight_log(py::bytes data) {
     py::object max_acc = py::none();
     py::list imu_speed_series;
     py::list imu_acc_series;
+    py::object kf_altitude_series = py::none();
 
     py::object imu_message_name = py::none();
     if (imu_fmt) {
         imu_message_name = py::str(imu_fmt->name);
         try {
             std::vector<ImuSample> imu_samples = build_imu_samples(*imu_fmt, att_samples);
-            py::dict imu_analysis = analyze_imu_series(imu_samples);
+            
+            // Pass both IMU and CLEANED GPS samples to our new fusion function
+            py::dict imu_analysis = analyze_imu_series(imu_samples, gps_samples);
+            
             imu_sampling = imu_analysis["sampling_hz"];
             max_h_speed = imu_analysis["max_horizontal_speed_mps"];
             max_v_speed = imu_analysis["max_vertical_speed_mps"];
             max_acc = imu_analysis["max_acceleration_mps2"];
             imu_speed_series = imu_analysis["speed_series"].cast<py::list>();
             imu_acc_series = imu_analysis["acceleration_series"].cast<py::list>();
+            
+            // Extract high-res KF altitude 
+            kf_altitude_series = imu_analysis["altitude_series"];
+            altitude_gain_m = imu_analysis["max_altitude_gain_m"].cast<double>();
         } catch (const std::exception& exc) {
             warnings.append(exc.what());
         }
@@ -1209,12 +1362,12 @@ py::dict analyze_flight_log(py::bytes data) {
         warnings.append("No IMU message found; IMU-derived metrics are unavailable");
     }
 
-    for (const auto& warning : gps_segment_analysis.warnings) {
+    for (const auto& warning : clean_gps.warnings) {
         warnings.append(warning);
     }
 
     py::dict metrics;
-    metrics["total_distance_m"] = round3(gps_segment_analysis.total_distance_m);
+    metrics["total_distance_m"] = round3(clean_gps.total_distance_m);
     metrics["flight_duration_s"] = round3(gps_samples.back().time_s - gps_samples.front().time_s);
     metrics["max_altitude_gain_m"] = round3(altitude_gain_m);
     metrics["max_horizontal_speed_mps"] = max_h_speed;
@@ -1249,7 +1402,12 @@ py::dict analyze_flight_log(py::bytes data) {
     py::list anomalies = detect_anomalies(max_h_speed, max_v_speed, max_acc);
     summary["anomalies"] = anomalies;
 
-    py::dict series = build_altitude_series(gps_samples);
+    py::dict series;
+    if (!kf_altitude_series.is_none()) {
+        series["altitude"] = kf_altitude_series;
+    } else {
+        series["altitude"] = build_altitude_series(gps_samples)["altitude"];
+    }
     series["imu_speed"] = imu_speed_series;
     series["imu_acceleration"] = imu_acc_series;
 
@@ -1273,8 +1431,6 @@ PYBIND11_MODULE(flight_parser, m) {
 
     m.doc() = "pybind11 ArduPilot BIN parser and flight analysis module";
 
-    m.def("add", &add, "A function that adds two numbers");
-    m.def("add_matrices", &add_matrices, "A function that adds two NumPy arrays (via Eigen)");
     m.def("parse_ardupilot_bin", &parse_ardupilot_bin, "Parses an Ardupilot Dataflash .bin log from raw bytes");
     m.def("convert_gps_to_enu", &convert_gps_to_enu, "Converts GPS log data to local ENU coordinates (meters) with WGS-84");
     m.def("analyze_flight_log", &analyze_flight_log, "Runs full flight analysis in native code");
