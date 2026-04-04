@@ -20,15 +20,19 @@ import {
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 
-function MetricCard({ icon: Icon, label, value, color, delay = 0 }: {
-  icon: any; label: string; value: string; color: string; delay?: number;
+function MetricCard({ icon: Icon, label, value, color, glowClass, delay = 0 }: {
+  icon: any; label: string; value: string; color: string; glowClass?: string; delay?: number;
 }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay, duration: 0.4, ease: 'easeOut' }}
-      className="group relative overflow-hidden rounded-xl glass-panel glass-panel-hover transition-all duration-300 cursor-default"
+      whileHover={{ scale: 1.03 }}
+      className={cn(
+        "group relative overflow-hidden rounded-xl glass-panel glass-panel-hover transition-all duration-300 cursor-default",
+        glowClass,
+      )}
     >
       <div className="p-3.5">
         <div className="flex items-center gap-2 mb-2">
@@ -39,7 +43,7 @@ function MetricCard({ icon: Icon, label, value, color, delay = 0 }: {
         </div>
         <div className="text-lg font-bold tracking-tight text-[var(--uav-text)]">{value}</div>
       </div>
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-br from-white/[0.02] to-transparent" />
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-br from-white/[0.03] to-transparent" />
     </motion.div>
   );
 }
@@ -74,7 +78,7 @@ function SidebarContent({
       {/* Header */}
       <div className="space-y-1">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-[var(--uav-accent)]/10 border border-[var(--uav-accent)]/20">
+          <div className="p-2 rounded-xl bg-[var(--uav-accent)]/10 border border-[var(--uav-accent)]/20 glow-gold">
             <Plane className="w-4.5 h-4.5 text-[var(--uav-accent)]" />
           </div>
           <div>
@@ -121,7 +125,7 @@ function SidebarContent({
             <Button
               onClick={handleAnalyze}
               disabled={isAnalyzing || !file}
-              className="h-10 px-5 bg-gradient-to-r from-[var(--uav-accent)] to-[#e0b840] hover:from-[var(--uav-accent-hover)] hover:to-[#f0c850] text-[#152028] font-bold text-xs shadow-lg shadow-[var(--uav-accent)]/20 transition-all duration-300 disabled:opacity-40 disabled:shadow-none"
+              className="h-10 px-5 bg-gradient-to-r from-[var(--uav-accent)] to-[#e0b840] hover:from-[var(--uav-accent-hover)] hover:to-[#f0c850] text-[#152028] font-bold text-xs glow-gold-strong hover:glow-gold-strong transition-all duration-300 disabled:opacity-40 disabled:shadow-none"
             >
               {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-3.5 h-3.5 mr-1.5" />Analyze</>}
             </Button>
@@ -136,10 +140,10 @@ function SidebarContent({
       {/* Tabbed content: AI / Metrics */}
       <Tabs defaultValue="ai" className="flex-1 flex flex-col min-h-0">
         <TabsList className="bg-[var(--uav-bg-subtle)] border border-white/5 p-1 h-auto shrink-0">
-          <TabsTrigger value="ai" className="text-xs data-[state=active]:bg-[var(--uav-panel)] data-[state=active]:text-[var(--uav-primary)] data-[state=active]:shadow-none gap-1.5 px-3 py-1.5">
+          <TabsTrigger value="ai" className="text-xs data-[state=active]:bg-[var(--uav-panel)] data-[state=active]:text-[var(--uav-primary)] data-[state=active]:shadow-[0_0_12px_rgba(107,227,255,0.15)] gap-1.5 px-3 py-1.5">
             <MessageSquare className="w-3.5 h-3.5" /> AI Debrief
           </TabsTrigger>
-          <TabsTrigger value="metrics" className="text-xs data-[state=active]:bg-[var(--uav-panel)] data-[state=active]:text-[var(--uav-accent)] data-[state=active]:shadow-none gap-1.5 px-3 py-1.5">
+          <TabsTrigger value="metrics" className="text-xs data-[state=active]:bg-[var(--uav-panel)] data-[state=active]:text-[var(--uav-accent)] data-[state=active]:shadow-[0_0_12px_rgba(244,201,93,0.15)] gap-1.5 px-3 py-1.5">
             <BarChart3 className="w-3.5 h-3.5" /> Metrics
           </TabsTrigger>
         </TabsList>
@@ -154,10 +158,10 @@ function SidebarContent({
           <div className="space-y-4">
             {/* Metric Cards */}
             <div className="grid grid-cols-2 gap-2.5">
-              <MetricCard icon={Clock} label="Duration" value={formatValue(analysis?.metrics.flight_duration_s, 1, 's')} color="bg-[var(--uav-primary)]/10 text-[var(--uav-primary)]" delay={0} />
-              <MetricCard icon={Route} label="Distance" value={formatValue(analysis?.metrics.total_distance_m, 1, 'm')} color="bg-[var(--uav-success)]/10 text-[var(--uav-success)]" delay={0.05} />
-              <MetricCard icon={Mountain} label="Max Alt" value={formatValue(analysis?.metrics.max_altitude_gain_m, 1, 'm')} color="bg-[var(--uav-accent)]/10 text-[var(--uav-accent)]" delay={0.1} />
-              <MetricCard icon={Zap} label="Max Speed" value={formatValue(analysis?.metrics.max_horizontal_speed_mps, 2, 'm/s')} color="bg-[var(--uav-danger)]/10 text-[var(--uav-danger)]" delay={0.15} />
+              <MetricCard icon={Clock} label="Duration" value={formatValue(analysis?.metrics.flight_duration_s, 1, 's')} color="bg-[var(--uav-primary)]/10 text-[var(--uav-primary)]" glowClass="hover:glow-cyan" delay={0} />
+              <MetricCard icon={Route} label="Distance" value={formatValue(analysis?.metrics.total_distance_m, 1, 'm')} color="bg-[var(--uav-success)]/10 text-[var(--uav-success)]" glowClass="hover:shadow-[0_0_30px_rgba(105,210,157,0.15)]" delay={0.05} />
+              <MetricCard icon={Mountain} label="Max Alt" value={formatValue(analysis?.metrics.max_altitude_gain_m, 1, 'm')} color="bg-[var(--uav-accent)]/10 text-[var(--uav-accent)]" glowClass="hover:glow-gold" delay={0.1} />
+              <MetricCard icon={Zap} label="Max Speed" value={formatValue(analysis?.metrics.max_horizontal_speed_mps, 2, 'm/s')} color="bg-[var(--uav-danger)]/10 text-[var(--uav-danger)]" glowClass="hover:shadow-[0_0_30px_rgba(255,123,114,0.15)]" delay={0.15} />
             </div>
 
             {/* Warnings */}
@@ -260,14 +264,15 @@ export function FlightAnalysisPage() {
     <div className="flex flex-col lg:flex-row h-screen w-full overflow-hidden relative">
       {/* Background ambient glow */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-[var(--uav-primary)]/[0.03] rounded-full blur-[150px]" />
-        <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-[var(--uav-accent)]/[0.02] rounded-full blur-[150px]" />
+        <div className="absolute -top-32 right-1/4 w-[700px] h-[700px] rounded-full blur-[180px] animate-glow-pulse" style={{ background: 'radial-gradient(circle, rgba(107, 227, 255, 0.08) 0%, transparent 70%)' }} />
+        <div className="absolute -bottom-32 left-1/6 w-[600px] h-[600px] rounded-full blur-[180px] animate-glow-pulse-gold" style={{ background: 'radial-gradient(circle, rgba(244, 201, 93, 0.06) 0%, transparent 70%)' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full blur-[200px]" style={{ background: 'radial-gradient(circle, rgba(107, 227, 255, 0.03) 0%, transparent 70%)' }} />
       </div>
 
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-3 glass-panel z-50 relative">
         <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-[var(--uav-accent)]/10 border border-[var(--uav-accent)]/20">
+          <div className="p-1.5 rounded-lg bg-[var(--uav-accent)]/10 border border-[var(--uav-accent)]/20 glow-gold">
             <Plane className="w-4 h-4 text-[var(--uav-accent)]" />
           </div>
           <h1 className="text-base font-bold tracking-tight">UAV Analysis</h1>
@@ -307,7 +312,10 @@ export function FlightAnalysisPage() {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="flex-1 min-h-[360px] lg:min-h-0 relative"
+          className={cn(
+            "flex-1 min-h-[360px] lg:min-h-0 relative rounded-2xl transition-all duration-1000",
+            isAnalyzing && "glow-cyan-border animate-glow-pulse"
+          )}
         >
           <CesiumViewer
             trajectory={analysis?.trajectory || null}

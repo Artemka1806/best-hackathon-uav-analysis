@@ -13,6 +13,7 @@ import {
 import { Line } from 'react-chartjs-2';
 import { FlightAnalysis } from '@/types/analysis';
 import { Mountain, Zap, TrendingUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 ChartJS.register(
   CategoryScale,
@@ -35,11 +36,11 @@ function sampleSeries<T>(series: T[], maxPoints = 240): T[] {
   return series.filter((_, index) => index % step === 0 || index === series.length - 1);
 }
 
-function ChartPanel({ icon: Icon, title, color, children }: {
-  icon: any; title: string; color: string; children: React.ReactNode;
+function ChartPanel({ icon: Icon, title, color, glowClass, children }: {
+  icon: any; title: string; color: string; glowClass?: string; children: React.ReactNode;
 }) {
   return (
-    <div className="glass-panel rounded-xl p-4 flex flex-col h-[240px] lg:h-full transition-all duration-300 hover:border-white/[0.08]">
+    <div className={cn("glass-panel rounded-xl p-4 flex flex-col h-[240px] lg:h-full transition-all duration-300 hover:border-white/[0.12]", glowClass)}>
       <div className="flex items-center gap-2 mb-3 shrink-0">
         <div className={`p-1 rounded-md ${color}`}>
           <Icon className="w-3 h-3" />
@@ -159,13 +160,13 @@ export function TelemetryCharts({ series }: TelemetryChartsProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 h-full">
-      <ChartPanel icon={Mountain} title="Altitude vs Time" color="bg-[var(--uav-primary)]/10 text-[var(--uav-primary)]">
+      <ChartPanel icon={Mountain} title="Altitude vs Time" color="bg-[var(--uav-primary)]/10 text-[var(--uav-primary)]" glowClass="hover:glow-cyan">
         <Line data={altitudeChartData} options={commonOptions} />
       </ChartPanel>
-      <ChartPanel icon={TrendingUp} title="Integrated Speed" color="bg-[var(--uav-accent)]/10 text-[var(--uav-accent)]">
+      <ChartPanel icon={TrendingUp} title="Integrated Speed" color="bg-[var(--uav-accent)]/10 text-[var(--uav-accent)]" glowClass="hover:glow-gold">
         <Line data={speedChartData} options={commonOptions} />
       </ChartPanel>
-      <ChartPanel icon={Zap} title="Acceleration" color="bg-[var(--uav-danger)]/10 text-[var(--uav-danger)]">
+      <ChartPanel icon={Zap} title="Acceleration" color="bg-[var(--uav-danger)]/10 text-[var(--uav-danger)]" glowClass="hover:shadow-[0_0_30px_rgba(255,123,114,0.12)]">
         <Line data={accelerationChartData} options={commonOptions} />
       </ChartPanel>
     </div>

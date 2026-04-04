@@ -141,11 +141,14 @@ export function AiDebrief({ analysis }: AiDebriefProps) {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className={cn(
+      "flex flex-col h-full transition-all duration-500",
+      isStreaming && "glow-gold-border animate-glow-pulse-gold"
+    )}>
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2">
-          <div className="p-1 rounded-md bg-[var(--uav-primary)]/10">
+          <div className="p-1 rounded-md bg-[var(--uav-primary)]/10 shadow-[0_0_12px_rgba(107,227,255,0.2)]">
             <Sparkles className="w-3.5 h-3.5 text-[var(--uav-primary)]" />
           </div>
           <span className="text-xs font-bold text-[var(--uav-text-secondary)] uppercase tracking-wider">AI Debrief</span>
