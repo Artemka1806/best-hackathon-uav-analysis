@@ -167,13 +167,13 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
   const currentPoint = trajectory?.points[currentTimeIndex];
 
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-[rgba(107,227,255,0.12)] group animate-glow-pulse">
+    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-[var(--uav-border)] group animate-glow-pulse">
       {/* Border Beam Effect */}
       <BorderBeam
         size={300}
         duration={8}
-        colorFrom="rgba(107, 227, 255, 0.4)"
-        colorTo="rgba(244, 201, 93, 0.3)"
+        colorFrom="var(--uav-primary)"
+        colorTo="var(--uav-accent)"
         delay={0}
       />
 
