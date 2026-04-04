@@ -39,7 +39,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -87,7 +86,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -140,6 +138,14 @@ instance/
 
 # Scrapy stuff:
 .scrapy
+
+CLAUDE.md
+.claude/
+*/.claude
+*/CLAUDE.md
+*/.gemini
+*/GEMINI.md
+.gemini
 
 # Sphinx documentation
 docs/_build/
