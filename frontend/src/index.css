@@ -4,112 +4,171 @@
 
 @layer base {
   :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --background: 210 50% 5%;
+    --foreground: 195 60% 96%;
+    --card: 205 45% 8%;
+    --card-foreground: 195 60% 96%;
+    --popover: 205 45% 8%;
+    --popover-foreground: 195 60% 96%;
+    --primary: 190 80% 70%;
+    --primary-foreground: 210 50% 8%;
+    --secondary: 43 88% 66%;
+    --secondary-foreground: 210 50% 8%;
+    --muted: 205 30% 15%;
+    --muted-foreground: 195 25% 65%;
+    --accent: 43 88% 66%;
+    --accent-foreground: 210 50% 8%;
+    --destructive: 0 62.8% 50%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
+    --border: 205 30% 18%;
+    --input: 205 30% 15%;
+    --ring: 190 80% 70%;
+    --chart-1: 190 80% 70%;
+    --chart-2: 150 60% 55%;
+    --chart-3: 43 88% 66%;
     --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --radius: 0.5rem;
+    --chart-5: 0 70% 60%;
+    --radius: 0.75rem;
 
-    /* UAV Analysis Specific */
-    --uav-bg: #09131a;
-    --uav-panel: #10212b;
+    /* UAV Design Tokens */
+    --uav-bg: #060d13;
+    --uav-bg-subtle: #0a1520;
+    --uav-panel: #0d1f2b;
+    --uav-panel-hover: #112a3a;
     --uav-accent: #f4c95d;
-    --uav-text: #eef6f8;
-    --uav-muted: #8eb1bc;
+    --uav-accent-hover: #ffd976;
+    --uav-primary: #6be3ff;
+    --uav-primary-dim: #4cb8d4;
+    --uav-text: #e8f4f8;
+    --uav-text-secondary: #9cbcc8;
+    --uav-muted: #5a8a9a;
+    --uav-success: #69d29d;
+    --uav-warning: #f4c95d;
+    --uav-danger: #ff7b72;
+    --uav-border: rgba(107, 227, 255, 0.08);
+    --uav-border-hover: rgba(107, 227, 255, 0.15);
+    --uav-glow-cyan: rgba(107, 227, 255, 0.12);
+    --uav-glow-gold: rgba(244, 201, 93, 0.10);
+  }
+
+  * {
+    border-color: var(--uav-border);
   }
 
   body {
-    background: radial-gradient(circle at top right, rgba(107, 227, 255, 0.16), transparent 30%),
-      radial-gradient(circle at bottom left, rgba(244, 201, 93, 0.14), transparent 30%),
-      linear-gradient(180deg, #071017 0%, #09131a 100%);
+    background: var(--uav-bg);
     color: var(--uav-text);
     min-height: 100vh;
-  }
-
-  /* Force light text for Shadcn components */
-  input, select, textarea, button, label {
-    color: var(--uav-text) !important;
-  }
-
-  input::file-selector-button {
-    color: var(--uav-text) !important;
-  }
-
-  /* Special case for buttons (dark text on light background) */
-  button.bg-\[\#f4c95d\], button[variant="primary"] {
-    color: #152028 !important;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Custom Scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
   ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.02);
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(142, 177, 188, 0.2);
+    background: rgba(107, 227, 255, 0.15);
     border-radius: 10px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(142, 177, 188, 0.4);
+    background: rgba(107, 227, 255, 0.3);
   }
 
-  /* Hide scrollbar for Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
-
-  /* Hide scrollbar for IE, Edge and Firefox */
   .no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
-  .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%
+
+  /* Range input styling */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(107, 227, 255, 0.15);
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 14px;
+    width: 14px;
+    border-radius: 50%;
+    background: var(--uav-accent);
+    margin-top: -5px;
+    box-shadow: 0 0 10px rgba(244, 201, 93, 0.4);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(107, 227, 255, 0.15);
+  }
+  input[type="range"]::-moz-range-thumb {
+    height: 14px;
+    width: 14px;
+    border-radius: 50%;
+    background: var(--uav-accent);
+    border: none;
+    box-shadow: 0 0 10px rgba(244, 201, 93, 0.4);
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    background: linear-gradient(135deg, rgba(13, 31, 43, 0.85), rgba(10, 21, 32, 0.95));
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--uav-border);
+  }
+
+  .glass-panel-hover:hover {
+    border-color: var(--uav-border-hover);
+    background: linear-gradient(135deg, rgba(17, 42, 58, 0.9), rgba(13, 31, 43, 0.95));
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 20px var(--uav-glow-cyan), inset 0 1px 0 rgba(107, 227, 255, 0.05);
+  }
+
+  .glow-gold {
+    box-shadow: 0 0 20px var(--uav-glow-gold), inset 0 1px 0 rgba(244, 201, 93, 0.05);
+  }
+
+  .text-gradient-cyan {
+    background: linear-gradient(135deg, #6be3ff, #4cb8d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #f4c95d, #ffd976);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
   }
 }

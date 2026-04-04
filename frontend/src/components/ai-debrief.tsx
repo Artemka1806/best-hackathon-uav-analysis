@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { FlightAnalysis, ChatMessage } from '@/types/analysis';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, Sparkles, User, Bot } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AiDebriefProps {
@@ -17,14 +17,38 @@ interface Message {
   isStreaming?: boolean;
 }
 
+function TypingIndicator() {
+  return (
+    <div className="flex items-center gap-1 px-1">
+      {[0, 1, 2].map((i) => (
+        <motion.div
+          key={i}
+          className="w-1.5 h-1.5 rounded-full bg-[var(--uav-primary)]"
+          animate={{
+            opacity: [0.3, 1, 0.3],
+            scale: [0.8, 1.1, 0.8],
+          }}
+          transition={{
+            duration: 1,
+            repeat: Infinity,
+            delay: i * 0.15,
+            ease: 'easeInOut',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function AiDebrief({ analysis }: AiDebriefProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const scrollEndRef = useRef<HTMLDivElement>(null);
   const initialDebriefSent = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const socketUrl = import.meta.env.VITE_API_WS_URL 
+  const socketUrl = import.meta.env.VITE_API_WS_URL
     ? `${import.meta.env.VITE_API_WS_URL}/api/ws/chat`
     : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/ws/chat`;
 
@@ -44,10 +68,7 @@ export function AiDebrief({ analysis }: AiDebriefProps) {
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (last && last.role === 'assistant' && last.isStreaming) {
-            return [
-              ...prev.slice(0, -1),
-              { ...last, content: last.content + (payload.text || '') },
-            ];
+            return [...prev.slice(0, -1), { ...last, content: last.content + (payload.text || '') }];
           }
           return prev;
         });
@@ -111,70 +132,137 @@ export function AiDebrief({ analysis }: AiDebriefProps) {
     }));
   };
 
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = '36px';
+      textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-2 h-full min-h-[400px]">
-      <div className="flex items-center justify-between shrink-0">
-        <h3 className="text-xs font-bold text-[#8eb1bc] uppercase tracking-widest">AI Flight Debrief</h3>
-        {isStreaming && (
-          <div className="flex items-center gap-1.5 text-[#f4c95d] text-[10px] animate-pulse">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#f4c95d] shadow-[0_0_8px_rgba(244,201,93,0.5)]" />
-            Streaming...
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/5 shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="p-1 rounded-md bg-[var(--uav-primary)]/10">
+            <Sparkles className="w-3.5 h-3.5 text-[var(--uav-primary)]" />
           </div>
-        )}
+          <span className="text-xs font-bold text-[var(--uav-text-secondary)] uppercase tracking-wider">AI Debrief</span>
+        </div>
+        <AnimatePresence>
+          {isStreaming && (
+            <motion.div
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              className="flex items-center gap-2 text-[var(--uav-primary)]"
+            >
+              <TypingIndicator />
+              <span className="text-[10px] font-medium">Thinking</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      <ScrollArea className="flex-1 min-h-0 bg-[#0d1a22] rounded-xl border border-white/5 p-2.5">
-        <div className="flex flex-col gap-2 pb-1">
+      {/* Messages */}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="flex flex-col gap-2 p-3">
           {messages.length === 0 && !analysis && (
-            <div className="text-sm text-[#8eb1bc] italic">
-              AI debrief will appear here after analysis.
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="w-12 h-12 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-center mb-3">
+                <Sparkles className="w-5 h-5 text-[var(--uav-muted)]/40" />
+              </div>
+              <p className="text-xs text-[var(--uav-muted)] max-w-[200px]">
+                AI debrief will appear here after analysis
+              </p>
             </div>
           )}
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={cn(
-                "p-2.5 rounded-xl text-sm leading-snug border",
-                msg.role === 'user' 
-                  ? "bg-[#f4c95d]/10 border-[#f4c95d]/20 text-[#fff3cd] self-end max-w-[90%]" 
-                  : "bg-white/5 border-white/10 text-[#eef6f8] self-start max-w-[90%]"
-              )}
-            >
-              <div className="font-bold mb-0.5 text-[10px] uppercase tracking-tighter opacity-50">
-                {msg.role === 'user' ? 'You' : 'Assistant'}
-              </div>
-              <div 
-                className="prose prose-invert prose-sm max-w-none text-[#eef6f8] prose-p:leading-normal prose-p:my-0.5 prose-ul:my-1 prose-li:my-0 prose-h4:mt-1.5 prose-h4:mb-0.5" 
-                dangerouslySetInnerHTML={{ __html: msg.content }} 
-              />
-              {msg.isStreaming && <span className="inline-block w-2 h-3.5 ml-1 bg-[#f4c95d] animate-pulse align-middle" />}
-            </div>
-          ))}
+          <AnimatePresence initial={false}>
+            {messages.map((msg, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
+                className={cn(
+                  "flex gap-2",
+                  msg.role === 'user' ? "flex-row-reverse" : "flex-row",
+                )}
+              >
+                {/* Avatar */}
+                <div className={cn(
+                  "w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
+                  msg.role === 'user'
+                    ? "bg-[var(--uav-accent)]/10 border border-[var(--uav-accent)]/20"
+                    : "bg-[var(--uav-primary)]/10 border border-[var(--uav-primary)]/20",
+                )}>
+                  {msg.role === 'user'
+                    ? <User className="w-3 h-3 text-[var(--uav-accent)]" />
+                    : <Bot className="w-3 h-3 text-[var(--uav-primary)]" />
+                  }
+                </div>
+
+                {/* Bubble */}
+                <div className={cn(
+                  "max-w-[85%] rounded-xl px-3 py-2 text-[13px] leading-relaxed",
+                  msg.role === 'user'
+                    ? "bg-[var(--uav-accent)]/[0.07] border border-[var(--uav-accent)]/10 text-[var(--uav-text)]"
+                    : "bg-white/[0.03] border border-white/5 text-[var(--uav-text)]",
+                )}>
+                  <div
+                    className="prose prose-invert prose-sm max-w-none
+                      prose-p:leading-relaxed prose-p:my-1 prose-p:text-[13px]
+                      prose-ul:my-1.5 prose-li:my-0 prose-li:text-[13px]
+                      prose-h4:mt-2 prose-h4:mb-1 prose-h4:text-xs prose-h4:text-[var(--uav-primary)]
+                      prose-strong:text-[var(--uav-text)] prose-strong:font-semibold
+                      prose-code:text-[var(--uav-primary)] prose-code:text-xs prose-code:bg-white/5 prose-code:px-1 prose-code:py-0.5 prose-code:rounded"
+                    dangerouslySetInnerHTML={{ __html: msg.content }}
+                  />
+                  {msg.isStreaming && (
+                    <motion.span
+                      className="inline-block w-[3px] h-4 ml-0.5 bg-[var(--uav-primary)] rounded-full align-middle"
+                      animate={{ opacity: [1, 0.2, 1] }}
+                      transition={{ duration: 0.8, repeat: Infinity }}
+                    />
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
           <div ref={scrollEndRef} className="h-0" />
         </div>
       </ScrollArea>
 
-      <form onSubmit={handleSend} className="flex gap-1.5 shrink-0">
-        <Textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question..."
-          className="min-h-[44px] max-h-[100px] bg-[#0b171f] border-white/10 text-[#eef6f8] text-xs py-2"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          disabled={!analysis || isStreaming || readyState !== ReadyState.OPEN}
-        />
-        <Button 
-          type="submit" 
-          disabled={!analysis || isStreaming || !input.trim() || readyState !== ReadyState.OPEN}
-          className="bg-[#f4c95d] hover:bg-[#da8f3b] text-[#152028] font-bold h-auto px-2.5 shrink-0"
-        >
-          {isStreaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-        </Button>
+      {/* Input */}
+      <form onSubmit={handleSend} className="p-2.5 border-t border-white/5 shrink-0">
+        <div className="flex items-end gap-2 bg-[var(--uav-bg-subtle)] rounded-xl border border-white/5 p-1.5 focus-within:border-[var(--uav-primary)]/20 transition-colors">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              adjustTextareaHeight();
+            }}
+            placeholder="Ask about the flight..."
+            className="flex-1 bg-transparent border-0 text-xs text-[var(--uav-text)] placeholder:text-[var(--uav-muted)]/50 resize-none focus:outline-none px-2 py-1.5 min-h-[36px] max-h-[100px]"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            disabled={!analysis || isStreaming || readyState !== ReadyState.OPEN}
+          />
+          <Button
+            type="submit"
+            disabled={!analysis || isStreaming || !input.trim() || readyState !== ReadyState.OPEN}
+            size="icon"
+            className="h-8 w-8 rounded-lg bg-[var(--uav-primary)]/15 hover:bg-[var(--uav-primary)]/25 text-[var(--uav-primary)] border-0 shrink-0 transition-all duration-200 disabled:opacity-30"
+          >
+            {isStreaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+          </Button>
+        </div>
       </form>
     </div>
   );

@@ -1,15 +1,215 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { CesiumViewer } from '@/components/cesium-viewer';
 import { TelemetryCharts } from '@/components/telemetry-charts';
 import { AiDebrief } from '@/components/ai-debrief';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { FlightAnalysis } from '@/types/analysis';
-import { Loader2, Upload, AlertTriangle, Info, Gauge, Menu, X } from 'lucide-react';
+import {
+  Loader2, Upload, AlertTriangle, Info, Gauge, Menu,
+  Plane, Clock, Route, Mountain, Zap, Activity, Radio,
+  ChevronRight, Sparkles, BarChart3, MessageSquare,
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { cn } from '@/lib/utils';
+
+function MetricCard({ icon: Icon, label, value, color, delay = 0 }: {
+  icon: any; label: string; value: string; color: string; delay?: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.4, ease: 'easeOut' }}
+      className="group relative overflow-hidden rounded-xl glass-panel glass-panel-hover transition-all duration-300 cursor-default"
+    >
+      <div className="p-3.5">
+        <div className="flex items-center gap-2 mb-2">
+          <div className={cn("p-1.5 rounded-lg", color)}>
+            <Icon className="w-3.5 h-3.5" />
+          </div>
+          <span className="text-[10px] uppercase tracking-widest text-[var(--uav-muted)] font-semibold">{label}</span>
+        </div>
+        <div className="text-lg font-bold tracking-tight text-[var(--uav-text)]">{value}</div>
+      </div>
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-br from-white/[0.02] to-transparent" />
+    </motion.div>
+  );
+}
+
+function StatusIndicator({ isAnalyzing, hasAnalysis }: { isAnalyzing: boolean; hasAnalysis: boolean }) {
+  return (
+    <motion.div
+      layout
+      className={cn(
+        "flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium border transition-all duration-300",
+        isAnalyzing && "bg-[var(--uav-primary)]/5 border-[var(--uav-primary)]/20 text-[var(--uav-primary)]",
+        !isAnalyzing && hasAnalysis && "bg-[var(--uav-success)]/5 border-[var(--uav-success)]/20 text-[var(--uav-success)]",
+        !isAnalyzing && !hasAnalysis && "bg-white/[0.02] border-white/5 text-[var(--uav-muted)]",
+      )}
+    >
+      <div className={cn(
+        "w-1.5 h-1.5 rounded-full shrink-0",
+        isAnalyzing && "bg-[var(--uav-primary)] animate-pulse shadow-[0_0_6px_rgba(107,227,255,0.5)]",
+        !isAnalyzing && hasAnalysis && "bg-[var(--uav-success)] shadow-[0_0_6px_rgba(105,210,157,0.5)]",
+        !isAnalyzing && !hasAnalysis && "bg-[var(--uav-muted)]/40",
+      )} />
+      {isAnalyzing ? 'Parsing telemetry & computing metrics...' : (hasAnalysis ? 'Analysis complete — data ready' : 'Upload a .BIN log file to begin')}
+    </motion.div>
+  );
+}
+
+function SidebarContent({
+  file, setFile, colorMode, setColorMode, isAnalyzing, analysis, handleAnalyze, formatValue,
+}: any) {
+  return (
+    <div className="flex flex-col gap-4 h-full">
+      {/* Header */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-[var(--uav-accent)]/10 border border-[var(--uav-accent)]/20">
+            <Plane className="w-4.5 h-4.5 text-[var(--uav-accent)]" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-[var(--uav-text)]">UAV Analysis</h1>
+            <p className="text-[10px] text-[var(--uav-muted)] uppercase tracking-widest">Telemetry & AI Debrief</p>
+          </div>
+        </div>
+      </div>
+
+      <Separator className="bg-white/5" />
+
+      {/* Upload Card */}
+      <div className="space-y-3">
+        <div className="space-y-2">
+          <label className="text-[10px] text-[var(--uav-text-secondary)] uppercase tracking-widest font-semibold flex items-center gap-1.5">
+            <Upload className="w-3 h-3" /> Flight Log
+          </label>
+          <Input
+            type="file"
+            accept=".bin,.BIN"
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              if (e.target.files?.[0]) setFile(e.target.files[0]);
+            }}
+            className="bg-[var(--uav-bg-subtle)] border-white/5 text-xs h-10 file:text-[var(--uav-text-secondary)] file:text-[10px] file:font-medium file:bg-transparent file:border-0 hover:border-white/10 transition-colors cursor-pointer"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <div className="flex-1 space-y-2">
+            <label className="text-[10px] text-[var(--uav-text-secondary)] uppercase tracking-widest font-semibold flex items-center gap-1.5">
+              <Activity className="w-3 h-3" /> Color Mode
+            </label>
+            <Select value={colorMode} onValueChange={setColorMode}>
+              <SelectTrigger className="bg-[var(--uav-bg-subtle)] border-white/5 h-10 text-xs hover:border-white/10 transition-colors">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-[var(--uav-panel)] border-white/10 text-[var(--uav-text)]">
+                <SelectItem value="speed">Speed</SelectItem>
+                <SelectItem value="time">Time</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-end">
+            <Button
+              onClick={handleAnalyze}
+              disabled={isAnalyzing || !file}
+              className="h-10 px-5 bg-gradient-to-r from-[var(--uav-accent)] to-[#e0b840] hover:from-[var(--uav-accent-hover)] hover:to-[#f0c850] text-[#152028] font-bold text-xs shadow-lg shadow-[var(--uav-accent)]/20 transition-all duration-300 disabled:opacity-40 disabled:shadow-none"
+            >
+              {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-3.5 h-3.5 mr-1.5" />Analyze</>}
+            </Button>
+          </div>
+        </div>
+
+        <StatusIndicator isAnalyzing={isAnalyzing} hasAnalysis={!!analysis} />
+      </div>
+
+      <Separator className="bg-white/5" />
+
+      {/* Tabbed content: AI / Metrics */}
+      <Tabs defaultValue="ai" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="bg-[var(--uav-bg-subtle)] border border-white/5 p-1 h-auto shrink-0">
+          <TabsTrigger value="ai" className="text-xs data-[state=active]:bg-[var(--uav-panel)] data-[state=active]:text-[var(--uav-primary)] data-[state=active]:shadow-none gap-1.5 px-3 py-1.5">
+            <MessageSquare className="w-3.5 h-3.5" /> AI Debrief
+          </TabsTrigger>
+          <TabsTrigger value="metrics" className="text-xs data-[state=active]:bg-[var(--uav-panel)] data-[state=active]:text-[var(--uav-accent)] data-[state=active]:shadow-none gap-1.5 px-3 py-1.5">
+            <BarChart3 className="w-3.5 h-3.5" /> Metrics
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="ai" className="flex-1 min-h-0 mt-3 data-[state=inactive]:hidden">
+          <div className="h-full rounded-xl glass-panel overflow-hidden">
+            <AiDebrief analysis={analysis} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="metrics" className="flex-1 min-h-0 mt-3 overflow-y-auto no-scrollbar data-[state=inactive]:hidden">
+          <div className="space-y-4">
+            {/* Metric Cards */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <MetricCard icon={Clock} label="Duration" value={formatValue(analysis?.metrics.flight_duration_s, 1, 's')} color="bg-[var(--uav-primary)]/10 text-[var(--uav-primary)]" delay={0} />
+              <MetricCard icon={Route} label="Distance" value={formatValue(analysis?.metrics.total_distance_m, 1, 'm')} color="bg-[var(--uav-success)]/10 text-[var(--uav-success)]" delay={0.05} />
+              <MetricCard icon={Mountain} label="Max Alt" value={formatValue(analysis?.metrics.max_altitude_gain_m, 1, 'm')} color="bg-[var(--uav-accent)]/10 text-[var(--uav-accent)]" delay={0.1} />
+              <MetricCard icon={Zap} label="Max Speed" value={formatValue(analysis?.metrics.max_horizontal_speed_mps, 2, 'm/s')} color="bg-[var(--uav-danger)]/10 text-[var(--uav-danger)]" delay={0.15} />
+            </div>
+
+            {/* Warnings */}
+            <div className="space-y-2">
+              <h3 className="text-[10px] text-[var(--uav-muted)] uppercase tracking-widest font-bold flex items-center gap-1.5">
+                <AlertTriangle className="w-3 h-3" /> Warnings & Anomalies
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {analysis?.summary.warnings.length || analysis?.summary.anomalies.length ? (
+                  <>
+                    {analysis?.summary.warnings.map((w: string, i: number) => (
+                      <Badge key={`w-${i}`} variant="outline" className="bg-[var(--uav-danger)]/5 border-[var(--uav-danger)]/15 text-red-300 text-[10px] py-0.5 font-medium gap-1">
+                        <AlertTriangle className="w-2.5 h-2.5" /> {w}
+                      </Badge>
+                    ))}
+                    {analysis?.summary.anomalies.map((a: string, i: number) => (
+                      <Badge key={`a-${i}`} variant="outline" className="bg-[var(--uav-accent)]/5 border-[var(--uav-accent)]/15 text-orange-300 text-[10px] py-0.5 font-medium gap-1">
+                        <Info className="w-2.5 h-2.5" /> {a}
+                      </Badge>
+                    ))}
+                  </>
+                ) : (
+                  <span className="text-[11px] text-[var(--uav-muted)] italic">No warnings detected</span>
+                )}
+              </div>
+            </div>
+
+            {/* Messages & Sampling */}
+            <div className="space-y-2">
+              <h3 className="text-[10px] text-[var(--uav-muted)] uppercase tracking-widest font-bold flex items-center gap-1.5">
+                <Radio className="w-3 h-3" /> Telemetry Data
+              </h3>
+              <div className="flex flex-wrap gap-1">
+                {analysis?.raw_preview.available_messages.slice(0, 15).map((m: string, i: number) => (
+                  <span key={i} className="px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/5 text-[10px] text-[var(--uav-text-secondary)] font-mono">
+                    {m}
+                  </span>
+                ))}
+              </div>
+              {analysis && (
+                <div className="text-[10px] font-mono text-[var(--uav-muted)] flex items-center gap-4 mt-1.5">
+                  <span className="flex items-center gap-1"><Gauge className="w-3 h-3 text-[var(--uav-primary)]" /> GPS: {formatValue(analysis.sampling.gps_hz, 1, 'Hz')}</span>
+                  <span className="flex items-center gap-1"><Gauge className="w-3 h-3 text-[var(--uav-accent)]" /> IMU: {formatValue(analysis.sampling.imu_hz, 1, 'Hz')}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
 
 export function FlightAnalysisPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -17,13 +217,6 @@ export function FlightAnalysisPage() {
   const [analysis, setAnalysis] = useState<FlightAnalysis | null>(null);
   const [colorMode, setColorMode] = useState<'speed' | 'time'>('speed');
   const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-    }
-  };
 
   const handleAnalyze = async () => {
     if (!file) {
@@ -51,9 +244,6 @@ export function FlightAnalysisPage() {
       setAnalysis(data);
       setCurrentTimeIndex(0);
       toast.success('Analysis complete');
-      if (window.innerWidth < 1024) {
-        setIsSidebarOpen(false);
-      }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -67,145 +257,75 @@ export function FlightAnalysisPage() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen w-full bg-[#09131a] text-[#eef6f8] overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-screen w-full overflow-hidden relative">
+      {/* Background ambient glow */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-[var(--uav-primary)]/[0.03] rounded-full blur-[150px]" />
+        <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-[var(--uav-accent)]/[0.02] rounded-full blur-[150px]" />
+      </div>
+
       {/* Mobile Header */}
-      <header className="lg:hidden flex items-center justify-between p-3 bg-[#10212b] border-b border-white/10 z-50">
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-bold tracking-tight">UAV Analysis</h1>
+      <header className="lg:hidden flex items-center justify-between p-3 glass-panel z-50 relative">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-[var(--uav-accent)]/10 border border-[var(--uav-accent)]/20">
+            <Plane className="w-4 h-4 text-[var(--uav-accent)]" />
+          </div>
+          <h1 className="text-base font-bold tracking-tight">UAV Analysis</h1>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-          {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
-        </Button>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-white/5">
+              <Menu className="w-5 h-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-[360px] bg-[var(--uav-bg)] border-r border-white/5 p-4 overflow-y-auto" aria-describedby={undefined}>
+            <VisuallyHidden.Root><SheetTitle>UAV Analysis Controls</SheetTitle></VisuallyHidden.Root>
+            <SidebarContent
+              file={file} setFile={setFile}
+              colorMode={colorMode} setColorMode={setColorMode}
+              isAnalyzing={isAnalyzing} analysis={analysis}
+              handleAnalyze={handleAnalyze} formatValue={formatValue}
+            />
+          </SheetContent>
+        </Sheet>
       </header>
 
-      {/* Sidebar */}
-      <aside className={cn(
-        "fixed inset-0 lg:relative lg:inset-auto z-40 lg:z-auto w-full lg:w-[360px] bg-[#09131a] lg:bg-transparent flex flex-col transition-transform duration-300 ease-in-out p-3 gap-3 overflow-y-auto shrink-0",
-        isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-      )}>
-        <div className="hidden lg:block mb-1">
-          <h1 className="text-2xl font-bold tracking-tight leading-tight">UAV Mission Analysis</h1>
-          <p className="text-[11px] text-[#8eb1bc] uppercase tracking-wider opacity-80">Real-time telemetry & AI debriefing</p>
-        </div>
-
-        <Card className="p-3 bg-[#10212b]/90 border-white/10 flex flex-col gap-3 shadow-xl">
-          <div className="space-y-1.5">
-            <label className="text-[9px] text-[#8eb1bc] uppercase tracking-widest font-semibold">Flight Log (.BIN)</label>
-            <Input 
-              type="file" 
-              accept=".bin,.BIN" 
-              onChange={handleFileChange}
-              className="bg-[#0b171f] border-white/10 text-xs h-9 file:text-[#eef6f8] file:text-[10px]"
-            />
-          </div>
-          
-          <div className="flex gap-2">
-            <div className="flex-1 space-y-1.5">
-              <label className="text-[9px] text-[#8eb1bc] uppercase tracking-widest font-semibold">Color Mode</label>
-              <Select value={colorMode} onValueChange={(v: any) => setColorMode(v)}>
-                <SelectTrigger className="bg-[#0b171f] border-white/10 h-9 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-[#10212b] border-white/10 text-[#eef6f8]">
-                  <SelectItem value="speed">Speed</SelectItem>
-                  <SelectItem value="time">Time</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button 
-              onClick={handleAnalyze} 
-              disabled={isAnalyzing || !file}
-              className="mt-auto h-9 bg-[#f4c95d] hover:bg-[#da8f3b] text-[#152028] font-bold text-xs"
-            >
-              {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : <Upload className="w-3.5 h-3.5 mr-1.5" />}
-              Analyze
-            </Button>
-          </div>
-
-          <div className={cn(
-            "p-2 rounded-lg text-[10px] font-medium border transition-colors",
-            analysis ? "bg-[#69d29d]/10 border-[#69d29d]/20 text-[#d9ffeb]" : "bg-[#6be3ff]/10 border-[#6be3ff]/20 text-[#d3f7ff]"
-          )}>
-            {isAnalyzing ? 'Parsing telemetry & computing metrics...' : (analysis ? 'Analysis ready' : 'Select a .BIN file to start analysis')}
-          </div>
-        </Card>
-
-        {/* AI Debrief */}
-        <Card className="p-3 bg-[#10212b]/90 border-white/10 shrink-0 h-[480px] overflow-hidden shadow-xl">
-          <AiDebrief analysis={analysis} />
-        </Card>
-
-        {/* Metrics */}
-        <section className="space-y-2">
-          <h3 className="text-[9px] text-[#8eb1bc] uppercase tracking-widest font-bold px-1">Mission Metrics</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: 'Duration', value: formatValue(analysis?.metrics.flight_duration_s, 1, 's') },
-              { label: 'Distance', value: formatValue(analysis?.metrics.total_distance_m, 1, 'm') },
-              { label: 'Max Alt', value: formatValue(analysis?.metrics.max_altitude_gain_m, 1, 'm') },
-              { label: 'Max Speed', value: formatValue(analysis?.metrics.max_horizontal_speed_mps, 2, 'm/s') },
-            ].map((m, i) => (
-              <Card key={i} className="p-2.5 bg-gradient-to-b from-[#163241]/90 to-[#0b171f]/98 border-white/10 shadow-lg">
-                <div className="text-[9px] text-[#8eb1bc] uppercase tracking-tighter font-semibold">{m.label}</div>
-                <div className="text-base font-bold mt-0.5 leading-none">{m.value}</div>
-              </Card>
-            ))}
-          </div>
-        </section>
-
-        {/* Warnings */}
-        <section className="space-y-2">
-          <h3 className="text-[9px] text-[#8eb1bc] uppercase tracking-widest font-bold px-1">Warnings & Anomalies</h3>
-          <div className="flex flex-wrap gap-1.5 px-0.5">
-            {analysis?.summary.warnings.length || analysis?.summary.anomalies.length ? (
-              <>
-                {analysis?.summary.warnings.map((w, i) => (
-                  <span key={i} className="px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-200 text-[9px] flex items-center gap-1 font-medium">
-                    <AlertTriangle size={10} /> {w}
-                  </span>
-                ))}
-                {analysis?.summary.anomalies.map((a, i) => (
-                  <span key={i} className="px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-200 text-[9px] flex items-center gap-1 font-medium">
-                    <Info size={10} /> {a}
-                  </span>
-                ))}
-              </>
-            ) : (
-              <span className="text-[10px] text-[#8eb1bc] italic px-1 opacity-70">No warnings detected</span>
-            )}
-          </div>
-        </section>
-
-        {/* Messages */}
-        <section className="space-y-2 pb-2">
-          <h3 className="text-[9px] text-[#8eb1bc] uppercase tracking-widest font-bold px-1">Messages & Sampling</h3>
-          <div className="flex flex-wrap gap-1 px-0.5">
-            {analysis?.raw_preview.available_messages.slice(0, 15).map((m, i) => (
-              <span key={i} className="px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-[9px] text-[#8eb1bc] font-medium">
-                {m}
-              </span>
-            ))}
-          </div>
-          <div className="text-[9px] font-mono text-[#8eb1bc] flex items-center gap-3 px-1 mt-1 opacity-80">
-            <span className="flex items-center gap-1"><Gauge size={10} /> GPS: {formatValue(analysis?.sampling.gps_hz, 1, 'Hz')}</span>
-            <span className="flex items-center gap-1"><Gauge size={10} /> IMU: {formatValue(analysis?.sampling.imu_hz, 1, 'Hz')}</span>
-          </div>
-        </section>
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex w-[380px] shrink-0 flex-col p-4 overflow-y-auto no-scrollbar relative z-10 border-r border-white/5">
+        <SidebarContent
+          file={file} setFile={setFile}
+          colorMode={colorMode} setColorMode={setColorMode}
+          isAnalyzing={isAnalyzing} analysis={analysis}
+          handleAnalyze={handleAnalyze} formatValue={formatValue}
+        />
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col gap-3 min-w-0 p-2 lg:p-3 overflow-y-auto lg:overflow-hidden">
-        <section className="flex-1 min-h-[360px] lg:min-h-0 relative">
-          <CesiumViewer 
-            trajectory={analysis?.trajectory || null} 
+      <main className="flex-1 flex flex-col gap-3 min-w-0 p-3 lg:p-4 overflow-y-auto lg:overflow-hidden relative z-10">
+        {/* Cesium Viewer */}
+        <motion.section
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="flex-1 min-h-[360px] lg:min-h-0 relative"
+        >
+          <CesiumViewer
+            trajectory={analysis?.trajectory || null}
             colorMode={colorMode}
             currentTimeIndex={currentTimeIndex}
             onTimeChange={setCurrentTimeIndex}
           />
-        </section>
-        <section className="lg:h-[280px] shrink-0">
+        </motion.section>
+
+        {/* Telemetry Charts */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5, ease: 'easeOut' }}
+          className="lg:h-[260px] shrink-0"
+        >
           <TelemetryCharts series={analysis?.series || { altitude: [], imu_speed: [], imu_acceleration: [] }} />
-        </section>
+        </motion.section>
       </main>
     </div>
   );

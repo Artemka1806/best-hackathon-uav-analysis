@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
 import { Trajectory } from '@/types/analysis';
+import { BorderBeam } from '@/components/ui/border-beam';
+import { MapPin, Timer } from 'lucide-react';
 import droneModelUrl from '@/assets/fpv_drone_cubed.glb';
 
 interface CesiumViewerProps {
@@ -15,8 +17,7 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const pathEntitiesRef = useRef<Cesium.Entity[]>([]);
   const uavEntityRef = useRef<Cesium.Entity | null>(null);
-  
-  // Use a ref for currentTimeIndex so the CallbackProperty can access it without closure stale-ness
+
   const timeIndexRef = useRef(currentTimeIndex);
   useEffect(() => {
     timeIndexRef.current = currentTimeIndex;
@@ -163,36 +164,74 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
     }
   }, [currentTimeIndex]);
 
+  const currentPoint = trajectory?.points[currentTimeIndex];
+
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+    <div className="relative w-full h-full rounded-2xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-black/40 group">
+      {/* Border Beam Effect */}
+      <BorderBeam
+        size={300}
+        duration={8}
+        colorFrom="rgba(107, 227, 255, 0.4)"
+        colorTo="rgba(244, 201, 93, 0.3)"
+        delay={0}
+      />
+
+      {/* Cesium Container */}
       <div ref={containerRef} className="absolute inset-0 w-full h-full" />
-      <div className="absolute left-2 right-2 md:left-4 md:right-4 bottom-2 md:bottom-4 flex gap-2 md:gap-4 items-center flex-wrap z-10 pointer-events-none">
-        <div className="p-2 md:p-3 rounded-xl bg-[#081016]/75 border border-white/10 backdrop-blur-md pointer-events-auto min-w-[180px] flex-1 md:flex-none">
-          <div className="text-[9px] md:text-[10px] text-[#8eb1bc] uppercase tracking-widest mb-1">Playback</div>
+
+      {/* Overlay Controls */}
+      <div className="absolute left-3 right-3 md:left-4 md:right-4 bottom-3 md:bottom-4 flex gap-2.5 items-end flex-wrap z-10 pointer-events-none">
+        {/* Playback Control */}
+        <div className="pointer-events-auto glass-panel rounded-xl p-3 flex-1 min-w-[200px] md:flex-none md:min-w-[380px]">
+          <div className="flex items-center gap-2 mb-2">
+            <Timer className="w-3 h-3 text-[var(--uav-accent)]" />
+            <span className="text-[10px] text-[var(--uav-muted)] uppercase tracking-widest font-semibold">Playback</span>
+          </div>
           <input
             type="range"
             min="0"
             max={trajectory?.points.length ? trajectory.points.length - 1 : 0}
             value={currentTimeIndex}
             onChange={(e) => onTimeChange(Number(e.target.value))}
-            className="w-full md:w-[420px] accent-[#f4c95d] h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
+            className="w-full"
             disabled={!trajectory}
           />
         </div>
-        <div className="p-2 md:p-3 rounded-xl bg-[#081016]/75 border border-white/10 backdrop-blur-md pointer-events-auto">
-          <div className="text-[9px] md:text-[10px] text-[#8eb1bc] uppercase tracking-widest mb-1">Current Sample</div>
-          <div className="text-xs md:text-sm font-mono text-[#eef6f8]">
-            {trajectory?.points[currentTimeIndex] ? (
+
+        {/* Current Sample Info */}
+        <div className="pointer-events-auto glass-panel rounded-xl p-3">
+          <div className="flex items-center gap-2 mb-1.5">
+            <MapPin className="w-3 h-3 text-[var(--uav-primary)]" />
+            <span className="text-[10px] text-[var(--uav-muted)] uppercase tracking-widest font-semibold">Position</span>
+          </div>
+          <div className="text-xs font-mono text-[var(--uav-text)] flex gap-3">
+            {currentPoint ? (
               <>
-                t: {(Number(trajectory.points[currentTimeIndex].t) / 1e6).toFixed(2)}s | 
-                alt: {Number(trajectory.points[currentTimeIndex].alt).toFixed(1)}m
+                <span className="text-[var(--uav-text-secondary)]">t: <span className="text-[var(--uav-text)]">{(Number(currentPoint.t) / 1e6).toFixed(2)}s</span></span>
+                <span className="text-[var(--uav-text-secondary)]">alt: <span className="text-[var(--uav-primary)]">{Number(currentPoint.alt).toFixed(1)}m</span></span>
               </>
             ) : (
-              't: - | alt: -'
+              <span className="text-[var(--uav-muted)]">No data</span>
             )}
           </div>
         </div>
       </div>
+
+      {/* Empty state overlay */}
+      {!trajectory && (
+        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+          <div className="text-center space-y-3 p-8">
+            <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center mx-auto">
+              <MapPin className="w-7 h-7 text-[var(--uav-muted)]/50" />
+            </div>
+            <div>
+              <p className="text-sm text-[var(--uav-muted)] font-medium">No trajectory loaded</p>
+              <p className="text-xs text-[var(--uav-muted)]/50 mt-1">Upload and analyze a flight log to view the 3D trajectory</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
