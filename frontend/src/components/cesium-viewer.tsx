@@ -27,7 +27,7 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
     Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.AAAA';
 
     const viewer = new Cesium.Viewer(containerRef.current, {
-      imageryProvider: false,
+      baseLayer: false,
       terrainProvider: new Cesium.EllipsoidTerrainProvider(),
       baseLayerPicker: false,
       geocoder: false,
