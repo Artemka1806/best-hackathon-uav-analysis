@@ -3,7 +3,7 @@ import * as Cesium from 'cesium';
 import { Trajectory } from '@/types/analysis';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { MapPin, Timer } from 'lucide-react';
-import droneModelUrl from '@/assets/fpv_drone_cubed.glb';
+import droneModelUrl from '@/assets/drone.glb';
 
 interface CesiumViewerProps {
   trajectory: Trajectory | null;
@@ -61,6 +61,10 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
 
     viewer.imageryLayers.removeAll();
     viewer.imageryLayers.addImageryProvider(satelliteProvider);
+
+    viewer.clock.shouldAnimate = true;
+    viewer.clock.multiplier = 1;
+
     viewerRef.current = viewer;
 
     return () => {
@@ -138,9 +142,10 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
       }, false) as any,
       model: {
         uri: droneModelUrl,
-        minimumPixelSize: 64,
-        maximumScale: 1000,
-        scale: 5,
+        minimumPixelSize: 48,
+        maximumScale: 200,
+        scale: 1,
+        runAnimations: true,
       },
     });
     uavEntityRef.current = uavEntity;
