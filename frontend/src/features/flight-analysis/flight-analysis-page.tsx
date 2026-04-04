@@ -262,9 +262,9 @@ export function FlightAnalysisPage() {
     <div className="flex flex-col lg:flex-row h-screen w-full overflow-hidden relative">
       {/* Background ambient glow */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute -top-32 right-1/4 w-[700px] h-[700px] rounded-full blur-[180px] animate-glow-pulse" style={{ background: 'radial-gradient(circle, rgba(107, 227, 255, 0.08) 0%, transparent 70%)' }} />
-        <div className="absolute -bottom-32 left-1/6 w-[600px] h-[600px] rounded-full blur-[180px] animate-glow-pulse-gold" style={{ background: 'radial-gradient(circle, rgba(244, 201, 93, 0.06) 0%, transparent 70%)' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full blur-[200px]" style={{ background: 'radial-gradient(circle, rgba(107, 227, 255, 0.03) 0%, transparent 70%)' }} />
+        <div className="absolute -top-32 right-1/4 w-[700px] h-[700px] rounded-full blur-[180px] animate-glow-pulse" style={{ background: 'radial-gradient(circle, var(--uav-primary) 0%, transparent 70%)', opacity: 0.08 }} />
+        <div className="absolute -bottom-32 left-1/6 w-[600px] h-[600px] rounded-full blur-[180px] animate-glow-pulse-gold" style={{ background: 'radial-gradient(circle, var(--uav-accent) 0%, transparent 70%)', opacity: 0.06 }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full blur-[200px]" style={{ background: 'radial-gradient(circle, var(--uav-primary) 0%, transparent 70%)', opacity: 0.03 }} />
       </div>
 
       {/* Mobile Header */}
