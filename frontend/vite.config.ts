@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
   const apiUrl = env.VITE_API_URL || 'http://localhost:1599';
 
   return {
+    assetsInclude: ['**/*.glb'],
     plugins: [react(), cesium()],
     resolve: {
       alias: {

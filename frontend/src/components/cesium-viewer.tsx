@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
 import { Trajectory } from '@/types/analysis';
+import droneModelUrl from '@/assets/fpv_drone_cubed.glb';
 
 interface CesiumViewerProps {
   trajectory: Trajectory | null;
@@ -53,11 +54,10 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
   useEffect(() => {
     if (!containerRef.current) return;
 
-    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.AAAA';
+    Cesium.Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_TOKEN ?? '';
 
     const viewer = new Cesium.Viewer(containerRef.current, {
       baseLayer: false,
-      terrainProvider: new Cesium.EllipsoidTerrainProvider(),
       baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
@@ -67,9 +67,19 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
       timeline: false,
       fullscreenButton: false,
       creditContainer: document.createElement('div'),
-      requestRenderMode: true,
-      maximumRenderTimeChange: 0.1,
     });
+
+    Cesium.createWorldTerrainAsync({ requestWaterMask: false, requestVertexNormals: true })
+      .then((terrainProvider) => {
+        if (!viewer.isDestroyed()) {
+          viewer.terrainProvider = terrainProvider;
+        }
+      })
+      .catch(() => {
+        if (!viewer.isDestroyed()) {
+          viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
+        }
+      });
 
     const satelliteProvider = new Cesium.UrlTemplateImageryProvider({
       url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -154,10 +164,11 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
         );
         return Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
       }, false) as any,
-      ellipsoid: {
-        radii: new Cesium.Cartesian3(24, 9, 9), // Adjusted for better visibility
-        material: Cesium.Color.fromCssColorString('#f4c95d').withAlpha(0.95),
-        outline: false,
+      model: {
+        uri: droneModelUrl,
+        minimumPixelSize: 64,
+        maximumScale: 1000,
+        scale: 5,
       },
     });
     uavEntityRef.current = uavEntity;
