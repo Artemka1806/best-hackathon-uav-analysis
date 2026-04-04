@@ -9,6 +9,35 @@ interface CesiumViewerProps {
   onTimeChange: (index: number) => void;
 }
 
+function getAbsoluteTimeSeconds(point: Trajectory['points'][number] | undefined) {
+  if (!point) return 0;
+  const timeSeconds = Number(point.t) / 1e6;
+  return Number.isFinite(timeSeconds) ? timeSeconds : 0;
+}
+
+function getRelativeTimeSeconds(points: Trajectory['points'], index: number) {
+  if (!points.length) return 0;
+  const safeIndex = Math.min(Math.max(index, 0), points.length - 1);
+  return Math.max(0, getAbsoluteTimeSeconds(points[safeIndex]) - getAbsoluteTimeSeconds(points[0]));
+}
+
+function findNearestPointIndexByRelativeTime(points: Trajectory['points'], relativeTimeSeconds: number) {
+  if (!points.length) return 0;
+
+  let nearestIndex = 0;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  for (let index = 0; index < points.length; index++) {
+    const distance = Math.abs(getRelativeTimeSeconds(points, index) - relativeTimeSeconds);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestIndex = index;
+    }
+  }
+
+  return nearestIndex;
+}
+
 export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeChange }: CesiumViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
@@ -152,6 +181,11 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
     }
   }, [currentTimeIndex]);
 
+  const points = trajectory?.points ?? [];
+  const currentPoint = points[currentTimeIndex];
+  const currentRelativeTimeSeconds = getRelativeTimeSeconds(points, currentTimeIndex);
+  const maxRelativeTimeSeconds = getRelativeTimeSeconds(points, points.length - 1);
+
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
       <div ref={containerRef} className="absolute inset-0 w-full h-full" />
@@ -160,21 +194,45 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
           <div className="text-[9px] md:text-[10px] text-[#8eb1bc] uppercase tracking-widest mb-1">Playback</div>
           <input
             type="range"
-            min="0"
-            max={trajectory?.points.length ? trajectory.points.length - 1 : 0}
+            min={0}
+            max={points.length ? points.length - 1 : 0}
             value={currentTimeIndex}
             onChange={(e) => onTimeChange(Number(e.target.value))}
             className="w-full md:w-[420px] accent-[#f4c95d] h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
             disabled={!trajectory}
           />
+          <div className="mt-2 flex items-center gap-2">
+            <label htmlFor="playback-time-seconds" className="text-[9px] md:text-[10px] text-[#8eb1bc] uppercase tracking-widest whitespace-nowrap">
+              Time, s
+            </label>
+            <input
+              id="playback-time-seconds"
+              type="number"
+              min={0}
+              max={maxRelativeTimeSeconds}
+              step="0.01"
+              value={points.length ? currentRelativeTimeSeconds.toFixed(2) : ''}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                if (!Number.isFinite(value)) return;
+                const clampedValue = Math.min(Math.max(value, 0), maxRelativeTimeSeconds);
+                onTimeChange(findNearestPointIndexByRelativeTime(points, clampedValue));
+              }}
+              className="w-28 rounded-md border border-white/10 bg-[#0d171d] px-2 py-1 text-xs text-[#eef6f8] outline-none"
+              disabled={!trajectory}
+            />
+            <span className="text-[9px] md:text-[10px] text-[#8eb1bc]/80">
+              from first valid GPS sample
+            </span>
+          </div>
         </div>
         <div className="p-2 md:p-3 rounded-xl bg-[#081016]/75 border border-white/10 backdrop-blur-md pointer-events-auto">
           <div className="text-[9px] md:text-[10px] text-[#8eb1bc] uppercase tracking-widest mb-1">Current Sample</div>
           <div className="text-xs md:text-sm font-mono text-[#eef6f8]">
-            {trajectory?.points[currentTimeIndex] ? (
+            {currentPoint ? (
               <>
-                t: {(Number(trajectory.points[currentTimeIndex].t) / 1e6).toFixed(2)}s | 
-                alt: {Number(trajectory.points[currentTimeIndex].alt).toFixed(1)}m
+                t: {currentRelativeTimeSeconds.toFixed(2)}s |
+                {' '}alt: {Number(currentPoint.alt).toFixed(1)}m
               </>
             ) : (
               't: - | alt: -'
