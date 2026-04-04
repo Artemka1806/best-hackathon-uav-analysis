@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
 import { Trajectory } from '@/types/analysis';
+import droneModelUrl from '@/assets/fpv_drone_cubed.glb';
 
 interface CesiumViewerProps {
   trajectory: Trajectory | null;
@@ -134,10 +135,11 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
         );
         return Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
       }, false) as any,
-      ellipsoid: {
-        radii: new Cesium.Cartesian3(24, 9, 9), // Adjusted for better visibility
-        material: Cesium.Color.fromCssColorString('#f4c95d').withAlpha(0.95),
-        outline: false,
+      model: {
+        uri: droneModelUrl,
+        minimumPixelSize: 64,
+        maximumScale: 1000,
+        scale: 5,
       },
     });
     uavEntityRef.current = uavEntity;
