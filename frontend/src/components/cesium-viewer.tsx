@@ -12,11 +12,47 @@ interface CesiumViewerProps {
   onTimeChange: (index: number) => void;
 }
 
+const MODEL_YAW_OFFSET_RAD = Cesium.Math.PI_OVER_TWO;
+
+function getAbsoluteTimeSeconds(point: Trajectory['points'][number] | undefined) {
+  if (!point) return 0;
+
+  const timeSeconds = Number(point.t) / 1e6;
+  return Number.isFinite(timeSeconds) ? timeSeconds : 0;
+}
+
+function getRelativeTimeSeconds(points: Trajectory['points'], index: number) {
+  if (!points.length) return 0;
+
+  const safeIndex = Math.min(Math.max(index, 0), points.length - 1);
+  return Math.max(0, getAbsoluteTimeSeconds(points[safeIndex]) - getAbsoluteTimeSeconds(points[0]));
+}
+
+function getModelOrientationQuaternion(
+  position: Cesium.Cartesian3,
+  baseOrientation: Cesium.Quaternion | undefined
+) {
+  if (!baseOrientation) {
+    return Cesium.Quaternion.IDENTITY;
+  }
+
+  const baseHeadingPitchRoll = Cesium.HeadingPitchRoll.fromQuaternion(baseOrientation);
+  const leveledHeadingPitchRoll = new Cesium.HeadingPitchRoll(
+    baseHeadingPitchRoll.heading + MODEL_YAW_OFFSET_RAD,
+    0,
+    0
+  );
+
+  return Cesium.Transforms.headingPitchRollQuaternion(position, leveledHeadingPitchRoll);
+}
+
 export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeChange }: CesiumViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const pathEntitiesRef = useRef<Cesium.Entity[]>([]);
   const uavEntityRef = useRef<Cesium.Entity | null>(null);
+  const sampledPositionRef = useRef<Cesium.SampledPositionProperty | null>(null);
+  const velocityOrientationRef = useRef<Cesium.VelocityOrientationProperty | null>(null);
 
   const timeIndexRef = useRef(currentTimeIndex);
   useEffect(() => {
@@ -92,6 +128,17 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
     const points = trajectory.points;
     const speedSeries = trajectory.speed_series || [];
     const speedLookup = new Map(speedSeries.map(item => [Number(item.t).toFixed(3), item.value]));
+    const sampledPosition = new Cesium.SampledPositionProperty();
+
+    points.forEach((point) => {
+      sampledPosition.addSample(
+        Cesium.JulianDate.fromDate(new Date(getAbsoluteTimeSeconds(point) * 1000)),
+        Cesium.Cartesian3.fromDegrees(Number(point.lon), Number(point.lat), Number(point.alt))
+      );
+    });
+
+    sampledPositionRef.current = sampledPosition;
+    velocityOrientationRef.current = new Cesium.VelocityOrientationProperty(sampledPosition);
 
     const values = points.map((point, index) => {
       if (colorMode === 'time') return index;
@@ -128,13 +175,12 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
       }, false) as any,
       orientation: new Cesium.CallbackProperty(() => {
         const point = points[timeIndexRef.current] || points[0];
+        const orientationIndex = Math.min(Math.max(timeIndexRef.current, 1), points.length - 2);
+        const orientationPoint = points[orientationIndex] || point;
         const pos = Cesium.Cartesian3.fromDegrees(Number(point.lon), Number(point.lat), Number(point.alt));
-        const hpr = new Cesium.HeadingPitchRoll(
-          Cesium.Math.toRadians(Number(point.yaw || 0)),
-          Cesium.Math.toRadians(Number(point.pitch || 0)),
-          Cesium.Math.toRadians(Number(point.roll || 0))
-        );
-        return Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
+        const sampleTime = Cesium.JulianDate.fromDate(new Date(getAbsoluteTimeSeconds(orientationPoint) * 1000));
+        const baseOrientation = velocityOrientationRef.current?.getValue(sampleTime, new Cesium.Quaternion());
+        return getModelOrientationQuaternion(pos, baseOrientation);
       }, false) as any,
       model: {
         uri: droneModelUrl,
@@ -165,6 +211,9 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
   }, [currentTimeIndex]);
 
   const currentPoint = trajectory?.points[currentTimeIndex];
+  const currentRelativeTimeSeconds = trajectory?.points.length
+    ? getRelativeTimeSeconds(trajectory.points, currentTimeIndex)
+    : 0;
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-white/[0.06] shadow-2xl shadow-black/40 group">
@@ -208,7 +257,7 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
           <div className="text-xs font-mono text-[var(--uav-text)] flex gap-3">
             {currentPoint ? (
               <>
-                <span className="text-[var(--uav-text-secondary)]">t: <span className="text-[var(--uav-text)]">{(Number(currentPoint.t) / 1e6).toFixed(2)}s</span></span>
+                <span className="text-[var(--uav-text-secondary)]">t: <span className="text-[var(--uav-text)]">{currentRelativeTimeSeconds.toFixed(2)}s</span></span>
                 <span className="text-[var(--uav-text-secondary)]">alt: <span className="text-[var(--uav-primary)]">{Number(currentPoint.alt).toFixed(1)}m</span></span>
               </>
             ) : (
