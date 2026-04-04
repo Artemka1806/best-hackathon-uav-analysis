@@ -39,6 +39,31 @@ function findNearestPointIndexByRelativeTime(points: Trajectory['points'], relat
   return nearestIndex;
 }
 
+function getTrackHeadingDegrees(points: Trajectory['points'], index: number) {
+  if (points.length < 2) return 0;
+
+  const safeIndex = Math.min(Math.max(index, 0), points.length - 1);
+  const prevPoint = points[Math.max(0, safeIndex - 1)];
+  const nextPoint = points[Math.min(points.length - 1, safeIndex + 1)];
+
+  if (!prevPoint || !nextPoint || prevPoint === nextPoint) {
+    return 0;
+  }
+
+  const lat1 = Cesium.Math.toRadians(Number(prevPoint.lat));
+  const lon1 = Cesium.Math.toRadians(Number(prevPoint.lon));
+  const lat2 = Cesium.Math.toRadians(Number(nextPoint.lat));
+  const lon2 = Cesium.Math.toRadians(Number(nextPoint.lon));
+  const deltaLon = lon2 - lon1;
+
+  const y = Math.sin(deltaLon) * Math.cos(lat2);
+  const x =
+    Math.cos(lat1) * Math.sin(lat2) -
+    Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon);
+
+  return Cesium.Math.toDegrees(Cesium.Math.zeroToTwoPi(Math.atan2(y, x)));
+}
+
 export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeChange }: CesiumViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
@@ -157,10 +182,11 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
       orientation: new Cesium.CallbackProperty(() => {
         const point = points[timeIndexRef.current] || points[0];
         const pos = Cesium.Cartesian3.fromDegrees(Number(point.lon), Number(point.lat), Number(point.alt));
+        const headingDeg = getTrackHeadingDegrees(points, timeIndexRef.current);
         const hpr = new Cesium.HeadingPitchRoll(
-          Cesium.Math.toRadians(Number(point.yaw || 0)),
-          Cesium.Math.toRadians(Number(point.pitch || 0)),
-          Cesium.Math.toRadians(Number(point.roll || 0))
+          Cesium.Math.toRadians(headingDeg),
+          0,
+          0
         );
         return Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
       }, false) as any,
