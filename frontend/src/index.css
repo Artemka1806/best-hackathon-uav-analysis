@@ -4,77 +4,54 @@
 
 @layer base {
   :root {
-    /* tweakcn-inspired dark aerospace theme (oklch) */
-    --background: oklch(0.13 0.015 240);
-    --foreground: oklch(0.95 0.01 210);
-    --card: oklch(0.17 0.02 235);
-    --card-foreground: oklch(0.95 0.01 210);
-    --popover: oklch(0.17 0.02 235);
-    --popover-foreground: oklch(0.95 0.01 210);
-    --primary: oklch(0.82 0.14 200);
-    --primary-foreground: oklch(0.13 0.02 240);
-    --secondary: oklch(0.78 0.14 80);
-    --secondary-foreground: oklch(0.13 0.02 240);
-    --muted: oklch(0.22 0.02 235);
-    --muted-foreground: oklch(0.65 0.03 210);
-    --accent: oklch(0.78 0.14 80);
-    --accent-foreground: oklch(0.13 0.02 240);
-    --destructive: oklch(0.65 0.2 25);
+    /* Midnight Aerospace Theme - Deep Tactical Blue */
+    --background: oklch(0.1 0.02 245);
+    --foreground: oklch(0.9 0.03 220);
+    --card: oklch(0.12 0.03 240);
+    --card-foreground: oklch(0.9 0.03 220);
+    --popover: oklch(0.12 0.03 240);
+    --popover-foreground: oklch(0.9 0.03 220);
+    --primary: oklch(0.7 0.15 210); /* Bright Aero Cyan */
+    --primary-foreground: oklch(0.1 0.02 245);
+    --secondary: oklch(0.2 0.04 240);
+    --secondary-foreground: oklch(0.9 0.03 220);
+    --muted: oklch(0.18 0.03 240);
+    --muted-foreground: oklch(0.6 0.05 220);
+    --accent: oklch(0.7 0.15 210);
+    --accent-foreground: oklch(0.1 0.02 245);
+    --destructive: oklch(0.6 0.18 20);
     --destructive-foreground: oklch(0.95 0.01 210);
-    --border: oklch(0.25 0.02 230);
-    --input: oklch(0.22 0.02 235);
-    --ring: oklch(0.7 0.12 200);
-    --chart-1: oklch(0.82 0.14 200);
-    --chart-2: oklch(0.72 0.15 155);
-    --chart-3: oklch(0.78 0.14 80);
-    --chart-4: oklch(0.65 0.18 290);
-    --chart-5: oklch(0.65 0.2 25);
-    --radius: 0.75rem;
-
-    /* Sidebar */
-    --sidebar-background: oklch(0.15 0.02 238);
-    --sidebar-foreground: oklch(0.95 0.01 210);
-    --sidebar-primary: oklch(0.82 0.14 200);
-    --sidebar-primary-foreground: oklch(0.13 0.02 240);
-    --sidebar-accent: oklch(0.22 0.02 235);
-    --sidebar-accent-foreground: oklch(0.95 0.01 210);
-    --sidebar-border: oklch(0.25 0.02 230);
-    --sidebar-ring: oklch(0.7 0.12 200);
+    --border: oklch(0.22 0.04 240 / 0.5);
+    --input: oklch(0.18 0.03 240);
+    --ring: oklch(0.7 0.15 210);
+    --radius: 0.5rem;
 
     /* UAV Design Tokens */
-    --uav-bg: #060d13;
-    --uav-bg-subtle: #0a1520;
-    --uav-panel: #0d1f2b;
-    --uav-panel-hover: #112a3a;
-    --uav-accent: #f4c95d;
-    --uav-accent-hover: #ffd976;
+    --uav-bg: #04080d;
+    --uav-bg-subtle: #08111a;
+    --uav-panel: rgba(13, 25, 38, 0.8);
+    --uav-panel-hover: rgba(18, 35, 54, 0.9);
+    --uav-accent: #6be3ff; /* Cyan focus */
+    --uav-accent-hover: #9df0ff;
     --uav-primary: #6be3ff;
     --uav-primary-dim: #4cb8d4;
-    --uav-text: #e8f4f8;
-    --uav-text-secondary: #9cbcc8;
-    --uav-muted: #5a8a9a;
-    --uav-success: #69d29d;
-    --uav-warning: #f4c95d;
-    --uav-danger: #ff7b72;
-    --uav-border: rgba(107, 227, 255, 0.08);
-    --uav-border-hover: rgba(107, 227, 255, 0.18);
-    --uav-glow-cyan: 0 0 30px rgba(107, 227, 255, 0.15), 0 0 60px rgba(107, 227, 255, 0.05);
-    --uav-glow-gold: 0 0 30px rgba(244, 201, 93, 0.15), 0 0 60px rgba(244, 201, 93, 0.05);
-    --uav-glow-cyan-strong: 0 0 20px rgba(107, 227, 255, 0.25), 0 0 50px rgba(107, 227, 255, 0.10), 0 0 100px rgba(107, 227, 255, 0.05);
-    --uav-glow-gold-strong: 0 0 20px rgba(244, 201, 93, 0.25), 0 0 50px rgba(244, 201, 93, 0.10), 0 0 100px rgba(244, 201, 93, 0.05);
-  }
-
-  * {
-    border-color: var(--uav-border);
+    --uav-text: #e0f2f7;
+    --uav-text-secondary: #8bb8c2;
+    --uav-muted: #4a6d7a;
+    --uav-success: #4ade80;
+    --uav-warning: #fbbf24;
+    --uav-danger: #f87171;
+    --uav-border: rgba(107, 227, 255, 0.1);
+    --uav-border-hover: rgba(107, 227, 255, 0.25);
+    --uav-glow-cyan: 0 0 25px rgba(107, 227, 255, 0.1), 0 0 50px rgba(107, 227, 255, 0.05);
+    --uav-glow-gold: 0 0 25px rgba(251, 191, 36, 0.1), 0 0 50px rgba(251, 191, 36, 0.05);
   }
 
   body {
-    background: var(--uav-bg);
+    background: radial-gradient(circle at 50% -20%, oklch(0.25 0.1 230 / 0.15), transparent 80%),
+                var(--uav-bg);
     color: var(--uav-text);
-    min-height: 100vh;
-    font-feature-settings: "cv11", "ss01";
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    font-family: 'Inter', system-ui, sans-serif;
   }
 
   /* Custom Scrollbar */

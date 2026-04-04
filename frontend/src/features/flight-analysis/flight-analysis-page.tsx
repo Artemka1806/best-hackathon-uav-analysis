@@ -25,25 +25,23 @@ function MetricCard({ icon: Icon, label, value, color, glowClass, delay = 0 }: {
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.4, ease: 'easeOut' }}
-      whileHover={{ scale: 1.03 }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay, duration: 0.3, ease: 'easeOut' }}
       className={cn(
-        "group relative overflow-hidden rounded-xl glass-panel glass-panel-hover transition-all duration-300 cursor-default",
+        "group relative overflow-hidden rounded-lg glass-panel transition-all duration-200 border-white/5",
         glowClass,
       )}
     >
-      <div className="p-3.5">
-        <div className="flex items-center gap-2 mb-2">
-          <div className={cn("p-1.5 rounded-lg", color)}>
-            <Icon className="w-3.5 h-3.5" />
+      <div className="p-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[9px] uppercase tracking-[0.15em] text-[var(--uav-muted)] font-bold">{label}</span>
+          <div className={cn("p-1 rounded", color)}>
+            <Icon size={12} />
           </div>
-          <span className="text-[10px] uppercase tracking-widest text-[var(--uav-muted)] font-semibold">{label}</span>
         </div>
-        <div className="text-lg font-bold tracking-tight text-[var(--uav-text)]">{value}</div>
+        <div className="text-xl font-black tracking-tighter text-[var(--uav-text)] font-mono">{value}</div>
       </div>
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-br from-white/[0.03] to-transparent" />
     </motion.div>
   );
 }
