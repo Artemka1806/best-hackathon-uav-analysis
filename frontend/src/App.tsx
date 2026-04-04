@@ -1,20 +1,13 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
-
-function HomePage() {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-      <h1 className="text-4xl font-bold">Template</h1>
-      <Button>Get started</Button>
-    </div>
-  )
-}
+import { Toaster } from 'react-hot-toast'
+import { FlightAnalysisPage } from '@/features/flight-analysis/flight-analysis-page'
 
 export default function App() {
   return (
     <BrowserRouter>
+      <Toaster position="top-right" />
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<FlightAnalysisPage />} />
       </Routes>
     </BrowserRouter>
   )
