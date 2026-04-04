@@ -144,13 +144,13 @@ function SidebarContent({
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="ai" className="flex-1 min-h-0 mt-3 data-[state=inactive]:hidden">
+        <TabsContent forceMount value="ai" className="flex-1 min-h-0 mt-3 data-[state=inactive]:hidden">
           <div className="h-full rounded-xl glass-panel overflow-hidden">
             <AiDebrief analysis={analysis} />
           </div>
         </TabsContent>
 
-        <TabsContent value="metrics" className="flex-1 min-h-0 mt-3 overflow-y-auto no-scrollbar data-[state=inactive]:hidden">
+        <TabsContent forceMount value="metrics" className="flex-1 min-h-0 mt-3 overflow-y-auto no-scrollbar data-[state=inactive]:hidden">
           <div className="space-y-4">
             {/* Metric Cards */}
             <div className="grid grid-cols-2 gap-2.5">
