@@ -116,14 +116,14 @@
 
 @layer utilities {
   .glass-panel {
-    background: linear-gradient(135deg, rgba(13, 31, 43, 0.85), rgba(10, 21, 32, 0.95));
+    background: var(--uav-panel);
     backdrop-filter: blur(20px);
     border: 1px solid var(--uav-border);
   }
 
   .glass-panel-hover:hover {
     border-color: var(--uav-border-hover);
-    background: linear-gradient(135deg, rgba(17, 42, 58, 0.9), rgba(13, 31, 43, 0.95));
+    background: var(--uav-panel-hover);
   }
 
   /* Glow effects */
