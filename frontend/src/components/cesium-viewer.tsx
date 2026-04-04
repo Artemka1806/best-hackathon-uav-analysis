@@ -138,7 +138,13 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
           Cesium.Math.toRadians(Number(point.pitch || 0)),
           Cesium.Math.toRadians(Number(point.roll || 0))
         );
-        return Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
+        const orientation = Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
+        // Model is oriented with its top as "forward" — rotate -90° pitch to align with Cesium's ENU frame
+        const fixOffset = Cesium.Quaternion.fromAxisAngle(
+          new Cesium.Cartesian3(0, 1, 0),
+          Cesium.Math.toRadians(90)
+        );
+        return Cesium.Quaternion.multiply(orientation, fixOffset, new Cesium.Quaternion());
       }, false) as any,
       model: {
         uri: droneModelUrl,
