@@ -24,11 +24,10 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
   useEffect(() => {
     if (!containerRef.current) return;
 
-    Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.AAAA';
+    Cesium.Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_TOKEN ?? '';
 
     const viewer = new Cesium.Viewer(containerRef.current, {
       baseLayer: false,
-      terrainProvider: new Cesium.EllipsoidTerrainProvider(),
       baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
@@ -38,9 +37,19 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
       timeline: false,
       fullscreenButton: false,
       creditContainer: document.createElement('div'),
-      requestRenderMode: true,
-      maximumRenderTimeChange: 0.1,
     });
+
+    Cesium.createWorldTerrainAsync({ requestWaterMask: false, requestVertexNormals: true })
+      .then((terrainProvider) => {
+        if (!viewer.isDestroyed()) {
+          viewer.terrainProvider = terrainProvider;
+        }
+      })
+      .catch(() => {
+        if (!viewer.isDestroyed()) {
+          viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
+        }
+      });
 
     const satelliteProvider = new Cesium.UrlTemplateImageryProvider({
       url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
