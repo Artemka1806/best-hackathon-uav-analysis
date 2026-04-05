@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import * as Cesium from 'cesium';
-import { Trajectory } from '@/types/analysis';
+import { Trajectory, GlobalPoint, EnuPoint } from '@/types/analysis';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { MapPin, Timer } from 'lucide-react';
 import droneModelUrl from '@/assets/drone.glb';
@@ -86,7 +86,9 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
 
   useEffect(() => {
     const viewer = viewerRef.current;
-    if (!viewer || !trajectory || !trajectory.points.length) return;
+    const globalPoints: GlobalPoint[] = trajectory?.global?.points || [];
+    const enuPoints: EnuPoint[] = trajectory?.enu?.points || [];
+    if (!viewer || !trajectory || !globalPoints.length) return;
 
     pathEntitiesRef.current.forEach(entity => viewer.entities.remove(entity));
     pathEntitiesRef.current = [];
@@ -95,11 +97,10 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
       uavEntityRef.current = null;
     }
 
-    const points = trajectory.points;
     const speedSeries = trajectory.speed_series || [];
     const speedLookup = new Map(speedSeries.map(item => [Number(item.t).toFixed(3), item.value]));
 
-    const values = points.map((point, index) => {
+    const values = globalPoints.map((point, index) => {
       if (colorMode === 'time') return index;
       const key = (Number(point.t) / 1e6).toFixed(3);
       return speedLookup.get(key) ?? 0;
@@ -108,9 +109,9 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
 
-    for (let index = 1; index < points.length; index++) {
-      const prev = points[index - 1];
-      const current = points[index];
+    for (let index = 1; index < globalPoints.length; index++) {
+      const prev = globalPoints[index - 1];
+      const current = globalPoints[index];
       const color = getMetricColor(values[index], minValue, maxValue);
 
       const entity = viewer.entities.add({
@@ -129,16 +130,17 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
 
     const uavEntity = viewer.entities.add({
       position: new Cesium.CallbackProperty(() => {
-        const point = points[timeIndexRef.current] || points[0];
+        const point = globalPoints[timeIndexRef.current] || globalPoints[0];
         return Cesium.Cartesian3.fromDegrees(Number(point.lon), Number(point.lat), Number(point.alt));
       }, false) as any,
       orientation: new Cesium.CallbackProperty(() => {
-        const point = points[timeIndexRef.current] || points[0];
-        const pos = Cesium.Cartesian3.fromDegrees(Number(point.lon), Number(point.lat), Number(point.alt));
+        const gPoint = globalPoints[timeIndexRef.current] || globalPoints[0];
+        const ePoint = enuPoints[timeIndexRef.current] || enuPoints[0];
+        const pos = Cesium.Cartesian3.fromDegrees(Number(gPoint.lon), Number(gPoint.lat), Number(gPoint.alt));
         const hpr = new Cesium.HeadingPitchRoll(
-          Cesium.Math.toRadians(Number(point.yaw || 0)),
-          Cesium.Math.toRadians(Number(point.pitch || 0)),
-          Cesium.Math.toRadians(Number(point.roll || 0))
+          Cesium.Math.toRadians(Number(ePoint?.yaw || 0)),
+          Cesium.Math.toRadians(Number(ePoint?.pitch || 0)),
+          Cesium.Math.toRadians(Number(ePoint?.roll || 0))
         );
         const orientation = Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
         // Model is oriented with its top as "forward" — rotate -90° pitch to align with Cesium's ENU frame
@@ -158,7 +160,7 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
     });
     uavEntityRef.current = uavEntity;
 
-    const first = points[0];
+    const first = globalPoints[0];
     viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(Number(first.lon), Number(first.lat), Number(first.alt) + 250),
       orientation: {
@@ -177,7 +179,8 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
     }
   }, [currentTimeIndex]);
 
-  const currentPoint = trajectory?.points[currentTimeIndex];
+  const globalPoints = trajectory?.global?.points || [];
+  const currentPoint = globalPoints[currentTimeIndex];
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden border border-[var(--uav-border)] group animate-glow-pulse">
@@ -204,7 +207,7 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
           <input
             type="range"
             min="0"
-            max={trajectory?.points.length ? trajectory.points.length - 1 : 0}
+            max={globalPoints.length ? globalPoints.length - 1 : 0}
             value={currentTimeIndex}
             onChange={(e) => onTimeChange(Number(e.target.value))}
             className="w-full"

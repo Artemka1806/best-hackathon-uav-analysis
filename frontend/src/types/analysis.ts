@@ -1,15 +1,30 @@
-export interface Point {
+export interface EnuPoint {
+  t: number | string;
+  e: number;
+  n: number;
+  u: number;
+  roll?: number | string;
+  pitch?: number | string;
+  yaw?: number | string;
+  valid_segment_from_previous?: boolean;
+}
+
+export interface GlobalPoint {
   t: number | string;
   lat: number | string;
   lon: number | string;
   alt: number | string;
-  yaw?: number | string;
-  pitch?: number | string;
-  roll?: number | string;
+  valid_segment_from_previous?: boolean;
 }
 
 export interface Trajectory {
-  points: Point[];
+  enu: {
+    origin: { lat: number; lon: number; alt: number };
+    points: EnuPoint[];
+  };
+  global: {
+    points: GlobalPoint[];
+  };
   speed_series?: { t: number | string; value: number }[];
 }
 
