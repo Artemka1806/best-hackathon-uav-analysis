@@ -65,6 +65,8 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
     viewer.clock.shouldAnimate = true;
     viewer.clock.multiplier = 1;
 
+    viewer.scene.globe.depthTestAgainstTerrain = true;
+
     viewerRef.current = viewer;
 
     return () => {
