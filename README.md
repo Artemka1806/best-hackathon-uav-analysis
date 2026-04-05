@@ -1,62 +1,152 @@
 # UAV Telemetry Analysis MVP
 
-MVP for ArduPilot DataFlash `.BIN` log parsing, flight metric calculation, and 3D mission preview.
+MVP для парсингу ArduPilot DataFlash `.BIN` логів, розрахунку метрик польоту та 3D превʼю місії.
 
-## Why This Stack
+[![Netlify Status](https://api.netlify.com/api/v1/badges/7f414f34-9052-47c0-8428-2f05eb8ce4f7/deploy-status)](https://app.netlify.com/projects/best-type-shit/deploys)
 
-- `FastAPI` gives a fast upload API and a simple way to serve the MVP preview from the same backend.
-- `pybind11 + C++` is used for binary ArduPilot log parsing and GPS-to-ENU conversion, where native code is a good fit for throughput and low-level binary decoding.
-- `CesiumJS` gives an interactive 3D mission view with camera controls out of the box.
-- `Chart.js` is enough for lightweight mission charts inside the single MVP preview file.
+## Чому саме цей стек
 
-## Implemented MVP
+- `FastAPI` забезпечує швидкий API для завантаження та простий спосіб обслуговувати MVP превʼю з того ж бекенду.
+- `pybind11 + C++` використовується для парсингу бінарних ArduPilot логів та конвертації GPS в ENU, де нативний код ідеально підходить для пропускної здатності та низькорівневого декодування бінарних даних.
+- `React + Vite` надає швидкий DX та оптимальний production build.
+- `CesiumJS` дає інтерактивний 3D вигляд місії з керуванням камерою з коробки.
+- `Three.js + React Three Fiber` для локальної 3D візуалізації траєкторії в координатах ENU.
+- `Chart.js` достатньо для легких графіків місії всередині dashboard.
 
-- Upload ArduPilot `.BIN` logs.
-- Parse available log messages from the binary stream.
-- Convert GPS coordinates from WGS-84 into local ENU coordinates relative to takeoff.
-- Compute mission metrics:
-  - total distance via `haversine`
-  - flight duration
-  - max altitude gain
-  - max horizontal speed from IMU acceleration using trapezoidal integration
-  - max vertical speed from IMU acceleration using trapezoidal integration
-  - max acceleration
-- Show one-file MVP dashboard at `/static/viewer.html`:
-  - 3D trajectory
-  - trajectory coloring by speed or time
-  - metric cards
-  - altitude, speed, and acceleration charts
-  - warnings / anomalies
+## Реалізовано в MVP
 
-## Project Structure
+- Завантаження ArduPilot `.BIN` логів.
+- Парсинг доступних повідомлень з бінарного потоку.
+- Конвертація GPS координат з WGS-84 в локальні ENU координати відносно точки зльоту.
+- Розрахунок метрик місії:
+  - загальна відстань через `haversine`
+  - тривалість польоту
+  - максимальний набір висоти
+  - максимальна горизонтальна швидкість з IMU прискорення через трапецієподібну інтеграцію
+  - максимальна вертикальна швидкість з IMU прискорення через трапецієподібну інтеграцію
+  - максимальне прискорення
+- Dashboard з:
+  - 3D траєкторією (глобальна та локальна)
+  - розфарбовкою траєкторії за швидкістю або часом
+  - картками метрик
+  - графіками висоти, швидкості та прискорення
+  - попередженнями / аномаліями
+  - AI-асистентом для аналізу польоту
 
-- `backend/src/native/main.cpp` — ArduPilot binary parser and WGS-84 → ENU conversion.
-- `backend/src/services/flight_analysis.py` — mission metrics and normalized analysis payload.
-- `backend/src/api/router.py` — upload, analyze, and log-preview endpoints.
-- `frontend/src/features/flight-analysis/` — main dashboard React components.
-- `frontend/src/components/cesium-viewer.tsx` — global 3D trajectory view.
-- `frontend/src/components/enu-viewer.tsx` — local 3D trajectory view with Three.js.
-- `frontend/src/components/telemetry-charts.tsx` — synchronized Chart.js graphs.
-- `frontend/src/components/ai-debrief.tsx` — AI chat assistant interface.
+## Структура проєкту
 
-## Running with Docker Compose
+```
+.
+├── backend/
+│   ├── src/
+│   │   ├── main.py                          — FastAPI app, routing, CORS
+│   │   ├── core/
+│   │   │   └── config.py                    — Налаштування (pydantic-settings)
+│   │   ├── api/
+│   │   │   ├── router.py                    — HTTP endpoints
+│   │   │   └── ws.py                        — WebSocket для AI чату
+│   │   ├── services/
+│   │   │   ├── flight_parser.py             — Python обгортка над C++ модулем
+│   │   │   └── flight_analysis.py           — Розрахунок метрик
+│   │   └── native/
+│   │       └── main.cpp                     — C++ парсер та аналізатор
+│   └── requirements.txt
+└── frontend/
+    ├── src/
+    │   ├── app.tsx                          — Головний компонент з роутингом
+    │   ├── features/
+    │   │   └── flight-analysis/             — Feature модуль аналізу
+    │   ├── components/
+    │   │   ├── cesium-viewer.tsx            — Глобальна 3D траєкторія
+    │   │   ├── enu-viewer.tsx               — Локальна 3D траєкторія (Three.js)
+    │   │   ├── telemetry-charts.tsx         — Синхронізовані графіки
+    │   │   └── ai-debrief.tsx               — AI чат інтерфейс
+    │   ├── hooks/                           — React хуки
+    │   ├── lib/                             — Утиліти та конфіги
+    │   └── styles/                          — Глобальні стилі
+    └── package.json
+```
 
-### 1. Configure environment
+---
+
+## Frontend Stack
+
+### Core Technologies
+
+- **React 19** — UI бібліотека з новими хуками та Server Components
+- **TypeScript 5.9** — Статична типізація для надійності коду
+- **Vite 7** — Швидкий bundler з HMR та оптимізованими production builds
+- **React Router 7** — Декларативний роутинг з типобезпекою
+
+### UI Framework
+
+- **shadcn/ui** — Composable компоненти побудовані на Radix UI
+- **Radix UI** — Unstyled, accessible компоненти:
+  - Dialog, Dropdown Menu, Select, Tabs
+  - Progress, Tooltip, Scroll Area
+  - Label, Separator, Slot
+- **Tailwind CSS 3.4** — Utility-first CSS framework
+- **Tailwind Animate** — Готові CSS анімації
+- **Framer Motion** — Декларативні анімації та жести
+
+### 3D Visualization
+
+- **CesiumJS 1.140** — Глобальна 3D візуалізація траєкторії на WGS-84 сфері
+- **Three.js 0.183** — WebGL для локальної 3D візуалізації в ENU координатах
+- **React Three Fiber 9.5** — Декларативний React renderer для Three.js
+- **React Three Drei 10.7** — Helpers та готові компоненти для R3F (OrbitControls, Environment, тощо)
+- **OGL 1.0** — Легка WebGL бібліотека для custom рендерингу
+
+### Data Visualization
+
+- **Chart.js 4.5** — Графіки висоти, швидкості, прискорення
+- **react-chartjs-2 5.3** — React обгортка над Chart.js з хуками
+
+### State Management & Data Fetching
+
+- **Zustand 5.0** — Мінімалістичний стейт менеджмент
+- **TanStack Query 5.90** — Async state management, кешування, синхронізація
+- **React Hook Form 7.71** — Performant форми з валідацією
+- **Zod 4.3** — TypeScript-first схема валідації
+
+### Real-time Communication
+
+- **react-use-websocket 4.13** — WebSocket хук для AI streaming chat
+
+### Developer Experience
+
+- **ESLint 9** — Лінтинг з React-специфічними правилами
+- **Playwright** — E2E тестування
+- **TypeScript ESLint 8** — TypeScript правила для ESLint
+- **Vite Plugin Cesium** — Інтеграція CesiumJS з Vite
+
+### Utilities
+
+- **clsx + tailwind-merge** — Умовне та оптимізоване зʼєднання класів
+- **class-variance-authority** — Type-safe варіанти компонентів
+- **lucide-react** — Іконки (SVG icon library)
+- **react-hot-toast** — Toast нотифікації
+
+---
+
+## Запуск через Docker Compose
+
+### 1. Налаштування environment
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` and fill in the required values:
+Відредагуйте `.env` та заповніть необхідні значення:
 
 ```env
 GEMINI_API_KEY=your-gemini-api-key
 VITE_CESIUM_TOKEN=your-cesium-ion-token
 ```
 
-All other values have sensible defaults and can be left as-is for local development.
+Всі інші значення мають розумні defaults і можуть залишатись без змін для локальної розробки.
 
-### 2. Start
+### 2. Старт
 
 ```bash
 docker compose up --build
@@ -65,7 +155,7 @@ docker compose up --build
 - Frontend: `http://localhost:5173`
 - Backend API docs: `http://localhost:8000/docs`
 
-### 3. Stop
+### 3. Зупинка
 
 ```bash
 docker compose down
@@ -73,18 +163,18 @@ docker compose down
 
 ---
 
-## Running Locally (without Docker)
+## Локальний запуск (без Docker)
 
-### Requirements
+### Вимоги
 
 ```bash
 sudo apt-get update
 sudo apt-get install python3-dev cmake build-essential
 ```
 
-Python 3.12+ is recommended.
+Рекомендується Python 3.12+.
 
-### Build Native Module
+### Збірка нативного модуля
 
 ```bash
 cd backend/src/native
@@ -94,7 +184,7 @@ mv build/flight_parser*.so .
 cd ../../..
 ```
 
-### Install Python Dependencies
+### Встановлення Python залежностей
 
 ```bash
 python -m venv .venv
@@ -102,32 +192,48 @@ source .venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
-### Configure Backend
+### Налаштування Backend
 
 ```bash
 cp backend/.env.example backend/.env
-# set GEMINI_API_KEY in backend/.env
+# встановіть GEMINI_API_KEY в backend/.env
 ```
 
-### Run Backend
+### Запуск Backend
 
 ```bash
 cd backend/src
 python main.py
 ```
 
-### Run Frontend
+### Встановлення Frontend залежностей
 
 ```bash
 cd frontend
 npm install
+```
+
+### Налаштування Frontend
+
+Створіть `.env` файл в `frontend/`:
+
+```env
+VITE_CESIUM_TOKEN=your-cesium-ion-token
+VITE_API_URL=http://localhost:8000
+```
+
+### Запуск Frontend
+
+```bash
 npm run dev
 ```
 
-Open:
+Відкрийте:
 
 - Frontend: `http://localhost:5173`
 - API docs: `http://localhost:8000/docs`
+
+---
 
 ## Backend Architecture
 
@@ -150,9 +256,9 @@ backend/src/
 
 ### Native C++ Module
 
-The heavy lifting — binary parsing, coordinate math, Kalman filtering — is done in C++ and exposed to Python via [pybind11](https://github.com/pybind/pybind11).
+Важка робота — бінарний парсинг, математика координат, фільтрація Калмана — виконується в C++ і експортується в Python через [pybind11](https://github.com/pybind/pybind11).
 
-`flight_parser.py` adds `backend/src/native/` to `sys.path` and imports the compiled `.so` directly:
+`flight_parser.py` додає `backend/src/native/` до `sys.path` та імпортує скомпільований `.so` безпосередньо:
 
 ```python
 import flight_parser  # flight_parser.cpython-*.so
@@ -162,62 +268,62 @@ flight_parser.convert_gps_to_enu(data)    # GPS → local ENU meters
 flight_parser.analyze_flight_log(data)    # full analysis payload
 ```
 
-`analyze_flight_log` returns a dict with the following top-level keys:
+`analyze_flight_log` повертає словник з наступними ключами верхнього рівня:
 
-| Key               | Description                                                                |
-| ----------------- | -------------------------------------------------------------------------- |
-| `summary`         | GPS/IMU message names used, point count, warnings, anomalies               |
-| `sampling`        | Estimated GPS and IMU sampling frequency (Hz)                              |
-| `metrics`         | Duration, distance, max altitude gain, max speed, max acceleration         |
-| `trajectory`      | `enu` (ENU points + origin), `global` (lat/lon/alt points), `speed_series` |
-| `series`          | KF-fused altitude, IMU speed, IMU acceleration time series                 |
-| `parameters`      | All PARM entries from the log (`name`, `value`)                            |
-| `flight_modes`    | MODE switches with timestamp and mode name                                 |
-| `errors`          | ERR entries with timestamp, subsystem, and error code                      |
-| `battery`         | BAT/CURR voltage, current, and consumed mAh over time                      |
-| `gps_quality`     | Per-sample fix type, HDOP, satellite count                                 |
-| `attitude`        | Roll/pitch/yaw time series from ATT/AHR2                                   |
-| `ai_context_toon` | Compact text representation of the above, sent to the AI                   |
-| `raw_preview`     | List of all message types present in the log                               |
+| Ключ              | Опис                                                                      |
+| ----------------- | ------------------------------------------------------------------------- |
+| `summary`         | GPS/IMU назви повідомлень, кількість точок, попередження, аномалії        |
+| `sampling`        | Приблизна частота семплування GPS та IMU (Hz)                             |
+| `metrics`         | Тривалість, відстань, макс набір висоти, макс швидкість, макс прискорення |
+| `trajectory`      | `enu` (ENU точки + початок), `global` (lat/lon/alt точки), `speed_series` |
+| `series`          | KF-фьюжена висота, IMU швидкість, IMU прискорення часові серії            |
+| `parameters`      | Всі PARM записи з логу (`name`, `value`)                                  |
+| `flight_modes`    | MODE перемикання з timestamp та назвою режиму                             |
+| `errors`          | ERR записи з timestamp, підсистемою та кодом помилки                      |
+| `battery`         | BAT/CURR напруга, струм та спожиті mAh в часі                             |
+| `gps_quality`     | Per-sample тип фіксації, HDOP, кількість супутників                       |
+| `attitude`        | Roll/pitch/yaw часові серії з ATT/AHR2                                    |
+| `ai_context_toon` | Компактне текстове представлення вищезазначеного, надсилається AI         |
+| `raw_preview`     | Список всіх типів повідомлень присутніх в логу                            |
 
-The result is sanitized with `core.utils.sanitize()` before being returned, which replaces `NaN` and `Inf` float values with `None` to prevent JSON serialization errors.
+Результат санітизується за допомогою `core.utils.sanitize()` перед поверненням, що замінює `NaN` та `Inf` float значення на `None` для запобігання помилкам JSON серіалізації.
 
 ### AI Integration
 
-The backend uses the **Google Gemini API** (`google-genai` SDK) with streaming responses. Model and API key are configured via environment variables:
+Backend використовує **Google Gemini API** (`google-genai` SDK) з streaming responses. Модель та API ключ налаштовуються через змінні оточення:
 
 ```env
 GEMINI_MODEL=gemini-2.0-flash
 GEMINI_API_KEY=...
 ```
 
-There are two AI entry points:
+Є дві точки входу AI:
 
-**`POST /api/ai-summary`** — single-shot summary, streams plain text back via `StreamingResponse`.
+**`POST /api/ai-summary`** — одноразове резюме, стрімить plain text назад через `StreamingResponse`.
 
-**`WebSocket /api/ws/chat`** — multi-turn chat session. The client sends JSON messages:
+**`WebSocket /api/ws/chat`** — багато-оборотна чат сесія. Клієнт надсилає JSON повідомлення:
 
 ```json
-// First message — sets context
+// Перше повідомлення — встановлює контекст
 { "type": "init", "filename": "...", "ai_context_toon": "...", "question": "..." }
 
-// Follow-up questions — reuse existing context
+// Подальші питання — повторно використовують існуючий контекст
 { "type": "question", "question": "..." }
 ```
 
-The server streams back:
+Сервер стрімить назад:
 
 ```json
 { "type": "start" }
-{ "type": "chunk", "text": "..." }   // repeated
+{ "type": "chunk", "text": "..." }   // повторюється
 { "type": "done" }
 ```
 
-Conversation history is kept in-memory for the duration of the WebSocket connection. On each `init` message the history is reset.
+Історія розмови зберігається в памʼяті протягом WebSocket зʼєднання. При кожному `init` повідомленні історія скидається.
 
-The AI receives `ai_context_toon` — a compact, indented text format generated by `build_ai_context_toon()` in C++. It includes aggregated statistics and sampled data points (not the full raw series), keeping the prompt size manageable while giving the model enough detail for accurate analysis.
+AI отримує `ai_context_toon` — компактний, відступний текстовий формат згенерований `build_ai_context_toon()` в C++. Він включає агреговану статистику та семплові точки даних (не повні сирі серії), підтримуючи розмір промпта керованим, водночас даючи моделі достатньо деталей для точного аналізу.
 
-Both endpoints retry up to 3 times on Gemini `503 / UNAVAILABLE` errors with a 1.5× backoff.
+Обидві точки входу повторюють до 3 разів при Gemini `503 / UNAVAILABLE` помилках з 1.5× backoff.
 
 ---
 
@@ -225,44 +331,83 @@ Both endpoints retry up to 3 times on Gemini `503 / UNAVAILABLE` errors with a 1
 
 ### `POST /api/analyze`
 
-Accepts a `.BIN` file upload and returns:
+Приймає завантаження `.BIN` файлу та повертає:
 
-- `sampling` — estimated GPS / IMU sampling rate
-- `metrics` — mission summary values
-- `trajectory` — origin, ENU points, and speed series
-- `series` — altitude, IMU speed, IMU acceleration
-- `summary` — warnings and detected anomalies
+- `sampling` — приблизна частота семплування GPS / IMU
+- `metrics` — значення зведення місії
+- `trajectory` — початок, ENU точки та серія швидкості
+- `series` — висота, IMU швидкість, IMU прискорення
+- `summary` — попередження та виявлені аномалії
 
 ### `POST /api/upload`
 
-Low-level parser endpoint that returns available message types and stores parsed data for browsing.
+Низькорівнева точка входу парсера, яка повертає доступні типи повідомлень та зберігає parsed дані для перегляду.
 
 ### `GET /api/logs/{filename}/messages`
 
-Preview paginated message data after upload.
+Перегляд пагінованих даних повідомлень після завантаження.
 
-## Math Notes
+### `WebSocket /api/ws/chat`
 
-### Distance
+Streaming AI чат для аналізу польоту.
 
-Total mission distance is calculated from GPS latitude / longitude pairs with the haversine formula, which is more appropriate than flat-Earth distance for geodetic coordinates.
+---
 
-### Speed From IMU
+## Математичні нотатки
 
-Velocity is reconstructed from IMU acceleration using trapezoidal integration:
+### Відстань
+
+Загальна відстань місії розраховується з пар GPS широти/довготи за формулою haversine, яка більш підходяща для геодезичних координат, ніж плоска відстань.
+
+### Швидкість з IMU
+
+Швидкість реконструюється з прискорення IMU за допомогою трапецієподібної інтеграції:
 
 ```text
 v_i = v_(i-1) + 0.5 * (a_(i-1) + a_i) * dt
 ```
 
-This is numerically more stable than naive rectangular integration, but IMU-derived velocity still drifts over time because accelerometer bias and attitude errors accumulate.
+Це чисельно більш стабільно, ніж наївна прямокутна інтеграція, але швидкість отримана з IMU все ще дрейфує з часом, оскільки зміщення акселерометра та помилки орієнтації накопичуються.
 
 ### WGS-84 → ENU
 
-The pipeline is:
+Конвеєр:
 
-1. Geodetic coordinates `(lat, lon, alt)` on WGS-84
-2. Conversion to ECEF
-3. Rotation into a local ENU frame relative to the takeoff point
+1. Геодезичні координати `(lat, lon, alt)` на WGS-84
+2. Конвертація в ECEF
+3. Обертання в локальну ENU раму відносно точки зльоту
 
-This gives trajectory coordinates in meters from the start point, which is convenient for kinematic analysis and local 3D interpretation.
+Це дає координати траєкторії в метрах від початкової точки, що зручно для кінематичного аналізу та локальної 3D інтерпретації.
+
+---
+
+## Scripts
+
+### Frontend
+
+```bash
+npm run dev      # Розробка з HMR
+npm run build    # Production build (TypeScript перевірка + Vite build)
+npm run preview  # Локальний preview production build
+npm run lint     # ESLint перевірка
+```
+
+### Backend
+
+```bash
+python main.py   # Запуск FastAPI сервера (uvicorn)
+```
+
+---
+
+## Deployment
+
+Проєкт налаштований для deployment на Netlify (frontend) та будь-якому сервісі що підтримує Docker (backend)
+
+[![Netlify Status](https://api.netlify.com/api/v1/badges/7f414f34-9052-47c0-8428-2f05eb8ce4f7/deploy-status)](https://app.netlify.com/projects/best-type-shit/deploys)
+
+---
+
+## License
+
+MIT
