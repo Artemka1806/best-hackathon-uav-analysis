@@ -17,10 +17,11 @@ RUN pip install -r requirements.txt
 
 COPY src ./src
 COPY .env.example ./.env.example
-#
-#RUN cmake -S /app/src/native -B /app/src/native/build \
-#    && cmake --build /app/src/native/build \
-#    && cp /app/src/native/build/flight_parser*.so /app/src/native/
+
+RUN cmake -S /app/src/native -B /app/src/native/build \
+   && cmake --build /app/src/native/build \
+   && cp /app/src/native/build/flight_parser*.so /app/src/native/ \
+   && rm -rf /app/src/native/build
 
 WORKDIR /app/src
 
