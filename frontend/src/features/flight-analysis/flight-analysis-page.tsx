@@ -100,8 +100,8 @@ function StatusIndicator({
       layout
       className={cn(
         "flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium border transition-all duration-300",
-        isAnalyzing && "bg-[var(--uav-primary)]/5 border-[var(--uav-primary)]/20 text-[var(--uav-primary)]",
-        !isAnalyzing && hasAnalysis && "bg-[var(--uav-success)]/5 border-[var(--uav-success)]/20 text-[var(--uav-success)]",
+        isAnalyzing && "bg-[#6be3ff]/5 border-[#6be3ff]/20 text-[var(--uav-primary)]",
+        !isAnalyzing && hasAnalysis && "bg-[#4ade80]/5 border-[#4ade80]/20 text-[var(--uav-success)]",
         !isAnalyzing && !hasAnalysis && "bg-white/[0.02] border-white/5 text-[var(--uav-muted)]",
       )}
     >
@@ -232,7 +232,7 @@ function SidebarContent({
                 icon={Clock}
                 label="Duration"
                 value={formatValue(analysis?.metrics.flight_duration_s, 1, "s")}
-                color="bg-[var(--uav-primary)]/10 text-[var(--uav-primary)]"
+                color="bg-[#6be3ff]/10 text-[var(--uav-primary)]"
                 glowClass="hover:glow-cyan"
                 delay={0}
               />
@@ -240,7 +240,7 @@ function SidebarContent({
                 icon={Route}
                 label="Distance"
                 value={formatValue(analysis?.metrics.total_distance_m, 1, "m")}
-                color="bg-[var(--uav-success)]/10 text-[var(--uav-success)]"
+                color="bg-[#4ade80]/10 text-[var(--uav-success)]"
                 glowClass="hover:shadow-[0_0_30px_rgba(105,210,157,0.15)]"
                 delay={0.05}
               />
@@ -252,7 +252,7 @@ function SidebarContent({
                   1,
                   "m",
                 )}
-                color="bg-[var(--uav-accent)]/10 text-[var(--uav-accent)]"
+                color="bg-[#6be3ff]/10 text-[var(--uav-accent)]"
                 glowClass="hover:glow-gold"
                 delay={0.1}
               />
@@ -264,7 +264,7 @@ function SidebarContent({
                   2,
                   "m/s",
                 )}
-                color="bg-[var(--uav-danger)]/10 text-[var(--uav-danger)]"
+                color="bg-[#f87171]/10 text-[var(--uav-danger)]"
                 glowClass="hover:shadow-[0_0_30px_rgba(255,123,114,0.15)]"
                 delay={0.15}
               />
@@ -283,7 +283,7 @@ function SidebarContent({
                       <Badge
                         key={`w-${i}`}
                         variant="outline"
-                        className="bg-[var(--uav-danger)]/5 border-[var(--uav-danger)]/15 text-red-300 text-[10px] py-0.5 font-medium gap-1"
+                        className="bg-[#f87171]/5 border-[#f87171]/15 text-red-300 text-[10px] py-0.5 font-medium gap-1"
                       >
                         <AlertTriangle className="w-2.5 h-2.5" /> {w}
                       </Badge>
@@ -292,7 +292,7 @@ function SidebarContent({
                       <Badge
                         key={`a-${i}`}
                         variant="outline"
-                        className="bg-[var(--uav-accent)]/5 border-[var(--uav-accent)]/15 text-orange-300 text-[10px] py-0.5 font-medium gap-1"
+                        className="bg-[#6be3ff]/5 border-[#6be3ff]/15 text-orange-300 text-[10px] py-0.5 font-medium gap-1"
                       >
                         <Info className="w-2.5 h-2.5" /> {a}
                       </Badge>
@@ -533,7 +533,7 @@ export function FlightAnalysisPage() {
                 className={cn(
                   "px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
                   viewMode === 'map' 
-                    ? "bg-[var(--uav-primary)]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]" 
+                    ? "bg-[#6be3ff]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]" 
                     : "text-[var(--uav-muted)] hover:text-[var(--uav-text)] hover:bg-white/5"
                 )}
               >
@@ -544,7 +544,7 @@ export function FlightAnalysisPage() {
                 className={cn(
                   "px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
                   viewMode === '3d' 
-                    ? "bg-[var(--uav-primary)]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]" 
+                    ? "bg-[#6be3ff]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]" 
                     : "text-[var(--uav-muted)] hover:text-[var(--uav-text)] hover:bg-white/5"
                 )}
               >

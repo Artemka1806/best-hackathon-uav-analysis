@@ -219,6 +219,34 @@ export function EnuViewer({ trajectory, colorMode, currentTimeIndex, onTimeChang
         </Canvas>
       </div>
 
+      {/* Interaction Hints */}
+      <div className="absolute right-3 md:right-4 top-3 md:top-4 flex flex-col gap-1.5 z-10 pointer-events-none">
+        <div className="glass-panel rounded-lg px-2.5 py-1.5 flex items-center gap-2 border-white/5 bg-[var(--uav-panel)]/80 backdrop-blur-sm">
+          <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-[var(--uav-text)] border border-white/10">
+            LMB
+          </kbd>
+          <span className="text-[10px] text-[var(--uav-muted)] font-bold uppercase tracking-wider">
+            Rotate
+          </span>
+        </div>
+        <div className="glass-panel rounded-lg px-2.5 py-1.5 flex items-center gap-2 border-white/5 bg-[var(--uav-panel)]/80 backdrop-blur-sm">
+          <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-[var(--uav-text)] border border-white/10">
+            RMB
+          </kbd>
+          <span className="text-[10px] text-[var(--uav-muted)] font-bold uppercase tracking-wider">
+            Pan
+          </span>
+        </div>
+        <div className="glass-panel rounded-lg px-2.5 py-1.5 flex items-center gap-2 border-white/5 bg-[var(--uav-panel)]/80 backdrop-blur-sm">
+          <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-[var(--uav-text)] border border-white/10">
+            SCROLL
+          </kbd>
+          <span className="text-[10px] text-[var(--uav-muted)] font-bold uppercase tracking-wider">
+            Zoom
+          </span>
+        </div>
+      </div>
+
       {/* Overlay Controls */}
       <div className="absolute left-3 right-3 md:left-4 md:right-4 bottom-3 md:bottom-4 flex gap-2.5 items-end flex-wrap z-10 pointer-events-none">
         {/* Playback Control */}
