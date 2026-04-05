@@ -364,7 +364,7 @@ std::tuple<double, double, double> ecef_delta_to_enu(
 
 /**
  * @brief Self-healing filter for physically impossible GPS leaps (glitches/multipath).
- * * Rejects jumps requiring absurd velocities (e.g. > Mach 1 for typical ArduPilot vehicles).
+ * Rejects jumps requiring absurd velocities (e.g. > Mach 1 for typical ArduPilot vehicles).
  * If consecutive bad points are found, the filter assumes the *reference* point was flawed
  * (e.g., initial sticky glitch) and resets the trajectory to the current stable point.
  * * @param raw_samples Unfiltered GPS samples.
@@ -641,11 +641,22 @@ std::vector<ImuSample> build_imu_samples(const FormatDef& imu_fmt, const std::ve
     return samples;
 }
 
+/**
+ * @brief Builds a separated trajectory payload for ENU and Global visualization.
+ * Converts raw GPS/Attitude samples into two separate lists:
+ * 1. ENU coordinates (East, North, Up) relative to the takeoff origin.
+ * 2. Global coordinates (Latitude, Longitude, Altitude).
+ * Calculates speed magnitudes between points for the speed series.
+ * * @param gps_samples Cleaned GPS samples array.
+ * @param att_samples Attitude samples for 3D orientation.
+ * @return py::dict Nested dictionary with "enu", "global", and "speed_series".
+ */
 py::dict build_trajectory_payload(
     const std::vector<GpsSample>& gps_samples,
     const std::vector<AttSample>& att_samples
 ) {
-    py::list points;
+    py::list enu_points;
+    py::list global_points;
     py::list speed_series;
 
     const GpsSample& origin_gps = gps_samples.front();
@@ -664,19 +675,26 @@ py::dict build_trajectory_payload(
         auto [e, n, u] = ecef_delta_to_enu(origin_gps.lat_deg, origin_gps.lon_deg, origin_ecef, point_ecef);
         AttSample att = nearest_attitude(sample.time_s, att_samples);
 
-        py::dict point;
-        point["e"] = e;
-        point["n"] = n;
-        point["u"] = u;
-        point["lat"] = sample.lat_deg;
-        point["lon"] = sample.lon_deg;
-        point["alt"] = sample.alt_m;
-        point["t"] = sample.time_s * 1'000'000.0;
-        point["roll"] = att.roll_deg;
-        point["pitch"] = att.pitch_deg;
-        point["yaw"] = att.yaw_deg;
-        point["valid_segment_from_previous"] = true; // Samples passed here are pre-filtered
-        points.append(point);
+        // Populate ENU point list for 3D visualizer
+        py::dict enu_point;
+        enu_point["e"] = e;
+        enu_point["n"] = n;
+        enu_point["u"] = u;
+        enu_point["t"] = sample.time_s * 1'000'000.0;
+        enu_point["roll"] = att.roll_deg;
+        enu_point["pitch"] = att.pitch_deg;
+        enu_point["yaw"] = att.yaw_deg;
+        enu_point["valid_segment_from_previous"] = true; // Samples passed here are pre-filtered
+        enu_points.append(enu_point);
+
+        // Populate Global point list for Map visualizer
+        py::dict global_point;
+        global_point["lat"] = sample.lat_deg;
+        global_point["lon"] = sample.lon_deg;
+        global_point["alt"] = sample.alt_m;
+        global_point["t"] = sample.time_s * 1'000'000.0;
+        global_point["valid_segment_from_previous"] = true;
+        global_points.append(global_point);
 
         if (i > 0) {
             double dt = sample.time_s - previous_time;
@@ -701,8 +719,8 @@ py::dict build_trajectory_payload(
     origin["alt"] = origin_gps.alt_m;
 
     py::dict result;
-    result["origin"] = origin;
-    result["points"] = points;
+    result["enu"] = py::dict("origin"_a = origin, "points"_a = enu_points);
+    result["global"] = py::dict("points"_a = global_points);
     result["speed_series"] = speed_series;
     return result;
 }
@@ -723,7 +741,7 @@ py::dict build_altitude_series(const std::vector<GpsSample>& gps_samples) {
 
 /**
  * @brief Linear Kalman Filter for fusing ENU IMU accelerations with ENU GPS positions.
- * * This filter maintains a 6D state vector consisting of 3D position and 3D velocity
+ * This filter maintains a 6D state vector consisting of 3D position and 3D velocity
  * in the East-North-Up (ENU) coordinate frame.
  * * @warning The noise covariance matrices (Q and R) are initialized with heuristic defaults.
  * For optimal performance, these should be tuned based on the specific sensors used in the drone.
@@ -732,7 +750,7 @@ class PositionVelocityKF {
 public:
     /**
      * @brief Constructor initializes the filter matrices.
-     * * @param initial_pos Initial position vector in ENU [e, n, u].
+     * @param initial_pos Initial position vector in ENU [e, n, u].
      */
     PositionVelocityKF(const Eigen::Vector3d& initial_pos) {
         x_.setZero();
@@ -757,7 +775,7 @@ public:
 
     /**
      * @brief Predicts the next state using IMU acceleration data.
-     * * @param dt Time delta since the last prediction in seconds.
+     * @param dt Time delta since the last prediction in seconds.
      * @param acc_enu Acceleration vector in ENU frame [ae, an, au].
      */
     void predict(double dt, const Eigen::Vector3d& acc_enu) {
@@ -772,7 +790,7 @@ public:
 
     /**
      * @brief Updates the state estimation using GPS measurement data.
-     * * @param pos_enu Measured position vector in ENU frame [e, n, u].
+     * @param pos_enu Measured position vector in ENU frame [e, n, u].
      */
     void update(const Eigen::Vector3d& pos_enu) {
         Eigen::Vector3d y = pos_enu - H_ * x_;
@@ -808,7 +826,7 @@ private:
 
 /**
  * @brief Fuses IMU and GPS data to analyze speeds and accelerations.
- * * Uses a Kalman Filter to prevent drift from double integration. Uses
+ * Uses a Kalman Filter to prevent drift from double integration. Uses
  * trapezoidal integration internally to satisfy hackathon MVP requirements.
  * * @param imu_samples Vector of IMU samples.
  * @param gps_samples Vector of CLEANED GPS samples for position updates.
@@ -1150,7 +1168,7 @@ std::string build_ai_context_toon(
     out << "raw_preview:\n";
     append_toon_dict(out, raw_preview, 1);
 
-    // ── flight_modes ──────────────────────────────────────────────────────────
+    // Flight Modes
     out << "flight_modes[" << py::len(mode_list) << "]:\n";
     for (const auto& raw : mode_list) {
         py::dict entry = raw.cast<py::dict>();
@@ -1161,7 +1179,7 @@ std::string build_ai_context_toon(
         out << "\n";
     }
 
-    // ── errors ────────────────────────────────────────────────────────────────
+    // Errors
     out << "errors[" << py::len(err_list) << "]:\n";
     for (const auto& raw : err_list) {
         py::dict entry = raw.cast<py::dict>();
@@ -1170,7 +1188,7 @@ std::string build_ai_context_toon(
             << " ecode=" << py_object_to_string(entry["ecode"]) << "\n";
     }
 
-    // ── parameters ───────────────────────────────────────────────────────────
+    // Parameters
     out << "parameters[" << py::len(parm_list) << "]:\n";
     for (const auto& raw : parm_list) {
         py::dict entry = raw.cast<py::dict>();
@@ -1178,8 +1196,9 @@ std::string build_ai_context_toon(
             << "=" << py_object_to_string(entry["value"]) << "\n";
     }
 
-    py::list trajectory_points = trajectory["points"].cast<py::list>();
-    py::dict origin = trajectory["origin"].cast<py::dict>();
+    py::dict trajectory_enu = trajectory["enu"].cast<py::dict>();
+    py::list trajectory_points = trajectory_enu["points"].cast<py::list>();
+    py::dict origin = trajectory_enu["origin"].cast<py::dict>();
     py::list trajectory_speed = trajectory["speed_series"].cast<py::list>();
 
     out << "trajectory:\n";
@@ -1227,14 +1246,13 @@ std::string build_ai_context_toon(
         out << "  invalid_segment_count: " << invalid_segments << "\n";
 
         std::vector<size_t> point_indices = sample_indices(py::len(trajectory_points), 24);
-        out << "  point_samples[" << point_indices.size() << "]{t_s,e,n,u,alt,yaw,valid}:\n";
+        out << "  point_samples[" << point_indices.size() << "]{t_s,e,n,u,yaw,valid}:\n";
         for (size_t idx : point_indices) {
             py::dict point = trajectory_points[idx].cast<py::dict>();
             out << "    " << round3(point["t"].cast<double>() / 1'000'000.0) << ","
                 << round3(point["e"].cast<double>()) << ","
                 << round3(point["n"].cast<double>()) << ","
                 << round3(point["u"].cast<double>()) << ","
-                << round3(point["alt"].cast<double>()) << ","
                 << round3(point["yaw"].cast<double>()) << ","
                 << primitive_to_toon(point["valid_segment_from_previous"]) << "\n";
         }
@@ -1303,7 +1321,7 @@ std::string build_ai_context_toon(
         24
     );
 
-    // ── battery ───────────────────────────────────────────────────────────────
+    // Battery
     if (py::len(bat_series) > 0) {
         out << "battery:\n";
         out << "  count: " << py::len(bat_series) << "\n";
@@ -1348,7 +1366,7 @@ std::string build_ai_context_toon(
         }
     }
 
-    // ── gps_quality ───────────────────────────────────────────────────────────
+    // GPS Quality
     if (py::len(gps_quality) > 0) {
         out << "gps_quality:\n";
         out << "  count: " << py::len(gps_quality) << "\n";
@@ -1389,7 +1407,7 @@ std::string build_ai_context_toon(
         }
     }
 
-    // ── attitude series ───────────────────────────────────────────────────────
+    // Attitude Series
     if (py::len(att_series) > 0) {
         out << "attitude_series:\n";
         out << "  count: " << py::len(att_series) << "\n";
@@ -1435,29 +1453,7 @@ py::dict parse_ardupilot_bin(py::bytes data) {
     return formats_to_python(formats);
 }
 
-py::dict convert_gps_to_enu(py::bytes data) {
-    std::string_view buf = data;
-    auto formats = collect_formats(buf, std::set<std::string>{"GPS", "GPS2", "ATT", "AHR2"});
-
-    const FormatDef* gps_fmt = find_message(formats, {"GPS", "GPS2"});
-    if (!gps_fmt) {
-        throw std::runtime_error("No GPS messages found in log");
-    }
-
-    const FormatDef* att_fmt = find_message(formats, {"ATT", "AHR2"});
-    std::vector<GpsSample> raw_gps = build_gps_samples(*gps_fmt);
-    CleanGpsData clean_gps = clean_gps_anomalies(raw_gps);
-    
-    if (clean_gps.samples.empty()) {
-        throw std::runtime_error("No valid GPS samples left after filtering anomalies");
-    }
-
-    std::vector<AttSample> att_samples = build_att_samples(att_fmt);
-    return build_trajectory_payload(clean_gps.samples, att_samples);
-}
-
-// ─── PARM ───────────────────────────────────────────────────────────────────
-
+// PARM
 py::list build_parm_list(const FormatDef* parm_fmt) {
     py::list result;
     if (!parm_fmt) return result;
@@ -1479,8 +1475,7 @@ py::list build_parm_list(const FormatDef* parm_fmt) {
     return result;
 }
 
-// ─── MODE ────────────────────────────────────────────────────────────────────
-
+// MODE
 py::list build_mode_list(const FormatDef* mode_fmt) {
     py::list result;
     if (!mode_fmt) return result;
@@ -1510,8 +1505,7 @@ py::list build_mode_list(const FormatDef* mode_fmt) {
     return result;
 }
 
-// ─── ERR ─────────────────────────────────────────────────────────────────────
-
+// ERR
 py::list build_err_list(const FormatDef* err_fmt) {
     py::list result;
     if (!err_fmt) return result;
@@ -1537,8 +1531,7 @@ py::list build_err_list(const FormatDef* err_fmt) {
     return result;
 }
 
-// ─── BAT / CURR ──────────────────────────────────────────────────────────────
-
+// BAT / CURR
 struct BatSample {
     double time_s{};
     double volt{};
@@ -1580,8 +1573,7 @@ py::list build_bat_series(const FormatDef* bat_fmt) {
     return result;
 }
 
-// ─── GPS quality ─────────────────────────────────────────────────────────────
-
+// GPS quality
 py::list build_gps_quality_series(const FormatDef* gps_fmt) {
     py::list result;
     if (!gps_fmt) return result;
@@ -1613,13 +1605,12 @@ py::list build_gps_quality_series(const FormatDef* gps_fmt) {
     return result;
 }
 
-// ─── ATT series ──────────────────────────────────────────────────────────────
-
+// ATT series
 py::list build_att_series(const std::vector<AttSample>& att_samples) {
     py::list result;
     for (const auto& s : att_samples) {
         py::dict entry;
-        entry["t_s"]      = round3(s.time_s);
+        entry["t_s"]       = round3(s.time_s);
         entry["roll_deg"]  = round3(s.roll_deg);
         entry["pitch_deg"] = round3(s.pitch_deg);
         entry["yaw_deg"]   = round3(s.yaw_deg);
@@ -1627,8 +1618,6 @@ py::list build_att_series(const std::vector<AttSample>& att_samples) {
     }
     return result;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 py::dict analyze_flight_log(py::bytes data) {
     std::string_view buf = data;
@@ -1658,6 +1647,8 @@ py::dict analyze_flight_log(py::bytes data) {
     }
 
     std::vector<AttSample> att_samples = build_att_samples(att_fmt);
+    
+    // Extracted Trajectory building directly merges the ENU and Global results here.
     py::dict trajectory = build_trajectory_payload(gps_samples, att_samples);
 
     double altitude_gain_m = 0.0;
@@ -1753,7 +1744,7 @@ py::dict analyze_flight_log(py::bytes data) {
     py::dict raw_preview;
     raw_preview["available_messages"] = build_available_message_names(formats);
 
-    // ── extra telemetry for AI context ──────────────────────────────────────
+    // Extra telemetry for AI context
     py::list parm_list   = build_parm_list(parm_fmt);
     py::list mode_list   = build_mode_list(mode_fmt);
     py::list err_list    = build_err_list(err_fmt);
@@ -1766,7 +1757,7 @@ py::dict analyze_flight_log(py::bytes data) {
     result["sampling"]    = sampling;
     result["units"]       = units;
     result["metrics"]     = metrics;
-    result["trajectory"]  = trajectory;
+    result["trajectory"]  = trajectory; // Now contains "enu", "global", and "speed_series"
     result["series"]      = series;
     result["raw_preview"] = raw_preview;
     result["parameters"]  = parm_list;
@@ -1785,6 +1776,5 @@ PYBIND11_MODULE(flight_parser, m) {
     m.doc() = "pybind11 ArduPilot BIN parser and flight analysis module";
 
     m.def("parse_ardupilot_bin", &parse_ardupilot_bin, "Parses an Ardupilot Dataflash .bin log from raw bytes");
-    m.def("convert_gps_to_enu", &convert_gps_to_enu, "Converts GPS log data to local ENU coordinates (meters) with WGS-84");
-    m.def("analyze_flight_log", &analyze_flight_log, "Runs full flight analysis in native code");
+    m.def("analyze_flight_log", &analyze_flight_log, "Runs full flight analysis and builds separated global/enu trajectories in a single pass");
 }
