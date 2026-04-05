@@ -203,13 +203,13 @@ export function CesiumViewer({
     const first = points[0];
     viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(
-        Number(first.lon),
-        Number(first.lat),
-        Number(first.alt) + 250,
+        Number(first.lon) + 0.0015, // Offset to the East
+        Number(first.lat) - 0.0015, // Offset to the South
+        Number(first.alt) + 120,    // Height above drone
       ),
       orientation: {
-        heading: 0,
-        pitch: Cesium.Math.toRadians(-40),
+        heading: Cesium.Math.toRadians(315), // Looking North-West towards the drone
+        pitch: Cesium.Math.toRadians(-30),
         roll: 0,
       },
       duration: 1.8,

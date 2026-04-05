@@ -1,6 +1,6 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
-import { FlightAnalysisPage } from '@/features/flight-analysis/flight-analysis-page'
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+import { FlightAnalysisPage } from "@/features/flight-analysis/flight-analysis-page";
 
 export default function App() {
   return (
@@ -10,5 +10,5 @@ export default function App() {
         <Route path="/" element={<FlightAnalysisPage />} />
       </Routes>
     </BrowserRouter>
-  )
+  );
 }
