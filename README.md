@@ -2,8 +2,6 @@
 
 MVP for ArduPilot DataFlash `.BIN` log parsing, flight metric calculation, and 3D mission preview.
 
-[![Netlify Status](https://api.netlify.com/api/v1/badges/7f414f34-9052-47c0-8428-2f05eb8ce4f7/deploy-status)](https://app.netlify.com/projects/best-type-shit/deploys)
-
 ## Why This Stack
 
 - `FastAPI` gives a fast upload API and a simple way to serve the MVP preview from the same backend.
@@ -60,7 +58,7 @@ All other values have sensible defaults and can be left as-is for local developm
 docker compose up --build
 ```
 
-- Frontend: `http://localhost:3000`
+- Frontend: `http://localhost:5173`
 - Backend API docs: `http://localhost:8000/docs`
 
 ### 3. Stop
@@ -156,7 +154,8 @@ The heavy lifting — binary parsing, coordinate math, Kalman filtering — is d
 import flight_parser  # flight_parser.cpython-*.so
 
 flight_parser.parse_ardupilot_bin(data)   # raw message-type dict
-flight_parser.analyze_flight_log(data)    # full analysis payload ENU, Global and speed series
+flight_parser.convert_gps_to_enu(data)    # GPS → local ENU meters
+flight_parser.analyze_flight_log(data)    # full analysis payload
 ```
 
 `analyze_flight_log` returns a dict with the following top-level keys:
