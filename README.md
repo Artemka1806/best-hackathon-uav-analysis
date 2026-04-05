@@ -401,7 +401,7 @@ python main.py   # Запуск FastAPI сервера (uvicorn)
 
 ## Deployment
 
-Проєкт налаштований для deployment на Netlify (frontend) та будь-якому сервісі що підтримує Docker (backend).
+Проєкт налаштований для deployment на Netlify (frontend) та будь-якому сервісі що підтримує Docker (backend)
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/7f414f34-9052-47c0-8428-2f05eb8ce4f7/deploy-status)](https://app.netlify.com/projects/best-type-shit/deploys)
 
