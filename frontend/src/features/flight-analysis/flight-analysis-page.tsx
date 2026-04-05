@@ -1,12 +1,12 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CesiumViewer } from '@/components/cesium-viewer';
-import { EnuViewer } from '@/components/enu-viewer';
-import { TelemetryCharts } from '@/components/telemetry-charts';
-import { AiDebrief } from '@/components/ai-debrief';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { CesiumViewer } from "@/components/cesium-viewer";
+import { EnuViewer } from "@/components/enu-viewer";
+import { TelemetryCharts } from "@/components/telemetry-charts";
+import { AiDebrief } from "@/components/ai-debrief";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -100,16 +100,24 @@ function StatusIndicator({
       layout
       className={cn(
         "flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium border transition-all duration-300",
-        isAnalyzing && "bg-[#6be3ff]/5 border-[#6be3ff]/20 text-[var(--uav-primary)]",
-        !isAnalyzing && hasAnalysis && "bg-[#4ade80]/5 border-[#4ade80]/20 text-[var(--uav-success)]",
-        !isAnalyzing && !hasAnalysis && "bg-white/[0.02] border-white/5 text-[var(--uav-muted)]",
+        isAnalyzing &&
+          "bg-[#6be3ff]/5 border-[#6be3ff]/20 text-[var(--uav-primary)]",
+        !isAnalyzing &&
+          hasAnalysis &&
+          "bg-[#4ade80]/5 border-[#4ade80]/20 text-[var(--uav-success)]",
+        !isAnalyzing &&
+          !hasAnalysis &&
+          "bg-white/[0.02] border-white/5 text-[var(--uav-muted)]",
       )}
     >
       <div
         className={cn(
           "w-1.5 h-1.5 rounded-full shrink-0",
-          isAnalyzing && "bg-[var(--uav-primary)] animate-pulse shadow-[0_0_6px_rgba(107,227,255,0.5)]",
-          !isAnalyzing && hasAnalysis && "bg-[var(--uav-success)] shadow-[0_0_6px_rgba(105,210,157,0.5)]",
+          isAnalyzing &&
+            "bg-[var(--uav-primary)] animate-pulse shadow-[0_0_6px_rgba(107,227,255,0.5)]",
+          !isAnalyzing &&
+            hasAnalysis &&
+            "bg-[var(--uav-success)] shadow-[0_0_6px_rgba(105,210,157,0.5)]",
           !isAnalyzing && !hasAnalysis && "bg-[var(--uav-muted)]/40",
         )}
       />
@@ -123,7 +131,16 @@ function StatusIndicator({
 }
 
 function SidebarContent({
-  file, setFile, colorMode, setColorMode, viewMode, setViewMode, isAnalyzing, analysis, handleAnalyze, formatValue,
+  file,
+  setFile,
+  colorMode,
+  setColorMode,
+  viewMode,
+  setViewMode,
+  isAnalyzing,
+  analysis,
+  handleAnalyze,
+  formatValue,
 }: any) {
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -184,7 +201,14 @@ function SidebarContent({
             disabled={isAnalyzing || !file}
             className="w-full h-10 px-5 bg-gradient-to-r from-[var(--uav-accent)] to-[#e0b840] hover:from-[var(--uav-accent-hover)] hover:to-[#f0c850] text-[#152028] font-bold text-xs glow-gold-strong hover:glow-gold-strong transition-all duration-300 disabled:opacity-40 disabled:shadow-none"
           >
-            {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-3.5 h-3.5 mr-1.5" />Analyze</>}
+            {isAnalyzing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                Analyze
+              </>
+            )}
           </Button>
         </div>
 
@@ -347,8 +371,8 @@ export function FlightAnalysisPage() {
   const [file, setFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<FlightAnalysis | null>(null);
-  const [colorMode, setColorMode] = useState<'speed' | 'time'>('speed');
-  const [viewMode, setViewMode] = useState<'map' | '3d'>('map');
+  const [colorMode, setColorMode] = useState<"speed" | "time">("speed");
+  const [viewMode, setViewMode] = useState<"map" | "3d">("map");
   const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
 
   const [sidebarWidth, setSidebarWidth] = useState(380);
@@ -357,15 +381,15 @@ export function FlightAnalysisPage() {
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     isDragging.current = true;
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none'; // prevent text selection while dragging
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none"; // prevent text selection while dragging
   }, []);
 
   const handleMouseUp = useCallback(() => {
     if (!isDragging.current) return;
     isDragging.current = false;
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
+    document.body.style.cursor = "";
+    document.body.style.userSelect = "";
   }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -377,11 +401,11 @@ export function FlightAnalysisPage() {
   }, []);
 
   useEffect(() => {
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [handleMouseMove, handleMouseUp]);
 
@@ -481,27 +505,37 @@ export function FlightAnalysisPage() {
               <SheetTitle>UAV Analysis Controls</SheetTitle>
             </VisuallyHidden.Root>
             <SidebarContent
-              file={file} setFile={setFile}
-              colorMode={colorMode} setColorMode={setColorMode}
-              viewMode={viewMode} setViewMode={setViewMode}
-              isAnalyzing={isAnalyzing} analysis={analysis}
-              handleAnalyze={handleAnalyze} formatValue={formatValue}
+              file={file}
+              setFile={setFile}
+              colorMode={colorMode}
+              setColorMode={setColorMode}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              isAnalyzing={isAnalyzing}
+              analysis={analysis}
+              handleAnalyze={handleAnalyze}
+              formatValue={formatValue}
             />
           </SheetContent>
         </Sheet>
       </header>
 
       {/* Desktop Sidebar */}
-      <aside 
+      <aside
         className="hidden lg:flex shrink-0 flex-col p-4 overflow-y-auto overflow-x-hidden no-scrollbar relative z-10"
         style={{ width: sidebarWidth }}
       >
         <SidebarContent
-          file={file} setFile={setFile}
-          colorMode={colorMode} setColorMode={setColorMode}
-          viewMode={viewMode} setViewMode={setViewMode}
-          isAnalyzing={isAnalyzing} analysis={analysis}
-          handleAnalyze={handleAnalyze} formatValue={formatValue}
+          file={file}
+          setFile={setFile}
+          colorMode={colorMode}
+          setColorMode={setColorMode}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          isAnalyzing={isAnalyzing}
+          analysis={analysis}
+          handleAnalyze={handleAnalyze}
+          formatValue={formatValue}
         />
       </aside>
 
@@ -529,23 +563,23 @@ export function FlightAnalysisPage() {
           <div className="absolute top-3 left-3 md:top-4 md:left-4 z-20">
             <div className="glass-panel p-1 rounded-xl flex items-center pointer-events-auto">
               <button
-                onClick={() => setViewMode('map')}
+                onClick={() => setViewMode("map")}
                 className={cn(
                   "px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
-                  viewMode === 'map' 
-                    ? "bg-[#6be3ff]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]" 
-                    : "text-[var(--uav-muted)] hover:text-[var(--uav-text)] hover:bg-white/5"
+                  viewMode === "map"
+                    ? "bg-[#6be3ff]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]"
+                    : "text-[var(--uav-muted)] hover:text-[var(--uav-text)] hover:bg-white/5",
                 )}
               >
-                Global Map
+                Relief Map
               </button>
               <button
-                onClick={() => setViewMode('3d')}
+                onClick={() => setViewMode("3d")}
                 className={cn(
                   "px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
-                  viewMode === '3d' 
-                    ? "bg-[#6be3ff]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]" 
-                    : "text-[var(--uav-muted)] hover:text-[var(--uav-text)] hover:bg-white/5"
+                  viewMode === "3d"
+                    ? "bg-[#6be3ff]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]"
+                    : "text-[var(--uav-muted)] hover:text-[var(--uav-text)] hover:bg-white/5",
                 )}
               >
                 Local 3D (ENU)
@@ -553,7 +587,7 @@ export function FlightAnalysisPage() {
             </div>
           </div>
 
-          {viewMode === 'map' ? (
+          {viewMode === "map" ? (
             <CesiumViewer
               trajectory={analysis?.trajectory || null}
               colorMode={colorMode}

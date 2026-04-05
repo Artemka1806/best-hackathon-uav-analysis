@@ -14,7 +14,7 @@ const scratchHpr = new Cesium.HeadingPitchRoll();
 const scratchQuaternion = new Cesium.Quaternion();
 const fixOffset = Cesium.Quaternion.fromAxisAngle(
   new Cesium.Cartesian3(0, 1, 0),
-  Cesium.Math.toRadians(90)
+  Cesium.Math.toRadians(90),
 );
 
 interface CesiumViewerProps {
@@ -135,7 +135,7 @@ export function CesiumViewer({
     });
 
     // Set background to a dark color to match the theme
-    viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#02050A');
+    viewer.scene.backgroundColor = Cesium.Color.fromCssColorString("#02050A");
 
     Cesium.createWorldTerrainAsync({
       requestWaterMask: false,
@@ -219,7 +219,10 @@ export function CesiumViewer({
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
 
-    let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+    let minLat = 90,
+      maxLat = -90,
+      minLon = 180,
+      maxLon = -180;
 
     const positions = new Array(globalPoints.length);
     const colors = new Array(globalPoints.length);
@@ -228,7 +231,7 @@ export function CesiumViewer({
       const point = globalPoints[index];
       const lat = Number(point.lat);
       const lon = Number(point.lon);
-      
+
       if (lat < minLat) minLat = lat;
       if (lat > maxLat) maxLat = lat;
       if (lon < minLon) minLon = lon;
@@ -237,7 +240,7 @@ export function CesiumViewer({
       positions[index] = Cesium.Cartesian3.fromDegrees(
         lon,
         lat,
-        Number(point.alt)
+        Number(point.alt),
       );
       colors[index] = getMetricColor(values[index], minValue, maxValue);
     }
@@ -246,14 +249,16 @@ export function CesiumViewer({
     // 1 degree lat is ~111km, so 5km is ~0.045 degrees
     const latBuffer = 0.045;
     // Longitude scale depends on latitude
-    const lonBuffer = 0.045 / Math.max(0.1, Math.cos(Cesium.Math.toRadians(minLat)));
-    
-    viewer.scene.globe.cartographicLimitRectangle = Cesium.Rectangle.fromDegrees(
-      minLon - lonBuffer,
-      minLat - latBuffer,
-      maxLon + lonBuffer,
-      maxLat + latBuffer
-    );
+    const lonBuffer =
+      0.045 / Math.max(0.1, Math.cos(Cesium.Math.toRadians(minLat)));
+
+    viewer.scene.globe.cartographicLimitRectangle =
+      Cesium.Rectangle.fromDegrees(
+        minLon - lonBuffer,
+        minLat - latBuffer,
+        maxLon + lonBuffer,
+        maxLat + latBuffer,
+      );
 
     const geometry = new Cesium.PolylineGeometry({
       positions: positions,
@@ -280,13 +285,13 @@ export function CesiumViewer({
       position: new Cesium.CallbackProperty(() => {
         const point = globalPoints[timeIndexRef.current] || globalPoints[0];
         const ePoint = enuPoints[timeIndexRef.current] || enuPoints[0];
-        
+
         Cesium.Cartesian3.fromDegrees(
           Number(point.lon),
           Number(point.lat),
           Number(point.alt),
           viewer.scene.globe.ellipsoid,
-          scratchCenter
+          scratchCenter,
         );
 
         const yawRad = Cesium.Math.toRadians(Number(ePoint?.yaw || 0));
@@ -297,40 +302,48 @@ export function CesiumViewer({
         scratchOffset.x = offsetX;
         scratchOffset.y = offsetY;
         scratchOffset.z = 0;
-        
-        Cesium.Transforms.eastNorthUpToFixedFrame(scratchCenter, viewer.scene.globe.ellipsoid, scratchTransform);
-        Cesium.Matrix4.multiplyByPoint(scratchTransform, scratchOffset, scratchPosition);
+
+        Cesium.Transforms.eastNorthUpToFixedFrame(
+          scratchCenter,
+          viewer.scene.globe.ellipsoid,
+          scratchTransform,
+        );
+        Cesium.Matrix4.multiplyByPoint(
+          scratchTransform,
+          scratchOffset,
+          scratchPosition,
+        );
 
         return scratchPosition;
       }, false) as any,
       orientation: new Cesium.CallbackProperty(() => {
         const gPoint = globalPoints[timeIndexRef.current] || globalPoints[0];
         const ePoint = enuPoints[timeIndexRef.current] || enuPoints[0];
-        
+
         Cesium.Cartesian3.fromDegrees(
           Number(gPoint.lon),
           Number(gPoint.lat),
           Number(gPoint.alt),
           viewer.scene.globe.ellipsoid,
-          scratchCenter
+          scratchCenter,
         );
-        
-        scratchHpr.heading = Cesium.Math.toRadians(Number(ePoint?.yaw || 0) + 90);
+
+        scratchHpr.heading = Cesium.Math.toRadians(Number(ePoint?.yaw || 0));
         scratchHpr.pitch = Cesium.Math.toRadians(Number(ePoint?.pitch || 0));
         scratchHpr.roll = Cesium.Math.toRadians(Number(ePoint?.roll || 0));
-        
+
         Cesium.Transforms.headingPitchRollQuaternion(
           scratchCenter,
           scratchHpr,
           viewer.scene.globe.ellipsoid,
           Cesium.Transforms.eastNorthUpToFixedFrame,
-          scratchQuaternion
+          scratchQuaternion,
         );
-        
+
         return Cesium.Quaternion.multiply(
           scratchQuaternion,
           fixOffset,
-          scratchQuaternion
+          scratchQuaternion,
         );
       }, false) as any,
       model: {

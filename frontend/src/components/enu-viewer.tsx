@@ -169,7 +169,7 @@ export function EnuViewer({ trajectory, colorMode, currentTimeIndex, onTimeChang
 
       <div className="absolute inset-0 w-full h-full cursor-move">
         <Canvas 
-          camera={{ position: [50, 50, 50], fov: 50, far: 2000000 }}
+          camera={{ position: [150, 40, 0], fov: 50, far: 15000 }}
           gl={{ logarithmicDepthBuffer: true, antialias: true }}
         >
           <color attach="background" args={['#02050A']} />
@@ -179,11 +179,12 @@ export function EnuViewer({ trajectory, colorMode, currentTimeIndex, onTimeChang
           
           <Grid 
             infiniteGrid 
-            fadeDistance={100000} 
+            fadeDistance={5000} 
             sectionSize={100} 
             cellSize={10}
             sectionColor="#4a6d7a" 
-            cellColor="#1e3440" 
+            cellColor="#1e3440"
+            side={THREE.DoubleSide} 
           />
 
           <axesHelper args={[100]} />
@@ -209,7 +210,7 @@ export function EnuViewer({ trajectory, colorMode, currentTimeIndex, onTimeChang
 
           <OrbitControls 
             makeDefault 
-            maxDistance={1500000}
+            maxDistance={10000}
             target={[
               currentPoint?.e || 0,
               currentPoint?.u || 0,
