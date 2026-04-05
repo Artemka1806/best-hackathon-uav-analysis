@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, useGLTF, Line, Grid, Environment } from '@react-three/drei';
+import { OrbitControls, useGLTF, Line, Grid, Environment, GizmoHelper, GizmoViewport } from '@react-three/drei';
 import * as THREE from 'three';
 import { Trajectory, EnuPoint } from '@/types/analysis';
 import { BorderBeam } from '@/components/ui/border-beam';
@@ -185,6 +185,15 @@ export function EnuViewer({ trajectory, colorMode, currentTimeIndex, onTimeChang
             sectionColor="#4a6d7a" 
             cellColor="#1e3440" 
           />
+
+          <axesHelper args={[100]} />
+
+          <GizmoHelper
+            alignment="bottom-right"
+            margin={[80, 80]}
+          >
+            <GizmoViewport axisColors={['#f87171', '#4ade80', '#6be3ff']} labelColor="white" />
+          </GizmoHelper>
 
           {positions.length > 0 && (
             <Line
