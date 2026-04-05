@@ -619,6 +619,8 @@ export function FlightAnalysisPage() {
                 imu_acceleration: [],
               }
             }
+            currentTimeIndex={currentTimeIndex}
+            trajectory={analysis?.trajectory ?? null}
           />
         </motion.section>
       </main>

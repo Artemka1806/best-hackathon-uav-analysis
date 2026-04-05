@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,9 +9,10 @@ import {
   Tooltip,
   Legend,
   Filler,
+  Plugin,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { FlightAnalysis } from '@/types/analysis';
+import { FlightAnalysis, Trajectory } from '@/types/analysis';
 import { Mountain, Zap, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +29,8 @@ ChartJS.register(
 
 interface TelemetryChartsProps {
   series: FlightAnalysis['series'];
+  currentTimeIndex?: number;
+  trajectory?: Trajectory | null;
 }
 
 function sampleSeries<T>(series: T[], maxPoints = 240): T[] {
@@ -54,7 +57,63 @@ function ChartPanel({ icon: Icon, title, color, glowClass, children }: {
   );
 }
 
-export function TelemetryCharts({ series }: TelemetryChartsProps) {
+function findClosestIndex<T extends { t: number | string }>(data: T[], targetT: number | null): number | null {
+  if (targetT === null || data.length === 0) return null;
+  let closest = 0;
+  let minDiff = Math.abs(Number(data[0].t) - targetT);
+  for (let i = 1; i < data.length; i++) {
+    const diff = Math.abs(Number(data[i].t) - targetT);
+    if (diff < minDiff) { minDiff = diff; closest = i; }
+  }
+  return closest;
+}
+
+// Plugin that reads current index from a ref — no re-registration needed
+function makeVerticalLinePlugin(indexRef: React.MutableRefObject<number | null>): Plugin<'line'> {
+  return {
+    id: 'verticalLine',
+    afterDraw(chart) {
+      const labelIndex = indexRef.current;
+      if (labelIndex === null || labelIndex < 0) return;
+      const { ctx, chartArea, scales } = chart;
+      const xScale = scales['x'];
+      if (!xScale) return;
+      const x = xScale.getPixelForValue(labelIndex);
+      if (x < chartArea.left || x > chartArea.right) return;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x, chartArea.top);
+      ctx.lineTo(x, chartArea.bottom);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(107, 227, 255, 0.85)';
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.restore();
+    },
+  };
+}
+
+// Wrapper that manages chart ref and triggers update when index changes
+function TrackedLine({ data, options, lineIndex }: {
+  data: any;
+  options: any;
+  lineIndex: number | null;
+}) {
+  const chartRef = useRef<ChartJS<'line'>>(null);
+  const indexRef = useRef<number | null>(lineIndex);
+  const pluginRef = useRef(makeVerticalLinePlugin(indexRef));
+
+  useEffect(() => {
+    indexRef.current = lineIndex;
+    if (chartRef.current) {
+      chartRef.current.update('none');
+    }
+  }, [lineIndex]);
+
+  return <Line ref={chartRef} data={data} options={options} plugins={[pluginRef.current]} />;
+}
+
+export function TelemetryCharts({ series, currentTimeIndex, trajectory }: TelemetryChartsProps) {
   const commonOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -103,6 +162,19 @@ export function TelemetryCharts({ series }: TelemetryChartsProps) {
   const altitudeData = sampleSeries(series.altitude || []);
   const speedData = sampleSeries(series.imu_speed || []);
   const accelerationData = sampleSeries(series.imu_acceleration || []);
+
+  // Get current time in seconds from trajectory
+  const currentT = useMemo(() => {
+    if (currentTimeIndex == null || !trajectory) return null;
+    const pts = trajectory.enu?.points ?? trajectory.global?.points;
+    if (!pts || pts.length === 0) return null;
+    const idx = Math.min(currentTimeIndex, pts.length - 1);
+    return Number(pts[idx].t) / 1e6; // microseconds → seconds
+  }, [currentTimeIndex, trajectory]);
+
+  const altitudeLineIndex = useMemo(() => findClosestIndex(altitudeData, currentT), [altitudeData, currentT]);
+  const speedLineIndex = useMemo(() => findClosestIndex(speedData, currentT), [speedData, currentT]);
+  const accelLineIndex = useMemo(() => findClosestIndex(accelerationData, currentT), [accelerationData, currentT]);
 
   const altitudeChartData = {
     labels: altitudeData.map((item) => Number(item.t).toFixed(1)),
@@ -161,13 +233,13 @@ export function TelemetryCharts({ series }: TelemetryChartsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 h-full">
       <ChartPanel icon={Mountain} title="Altitude vs Time" color="bg-[#6be3ff]/10 text-[var(--uav-primary)]" glowClass="hover:glow-cyan">
-        <Line data={altitudeChartData} options={commonOptions} />
+        <TrackedLine data={altitudeChartData} options={commonOptions} lineIndex={altitudeLineIndex} />
       </ChartPanel>
       <ChartPanel icon={TrendingUp} title="Integrated Speed" color="bg-[#6be3ff]/10 text-[var(--uav-accent)]" glowClass="hover:glow-gold">
-        <Line data={speedChartData} options={commonOptions} />
+        <TrackedLine data={speedChartData} options={commonOptions} lineIndex={speedLineIndex} />
       </ChartPanel>
       <ChartPanel icon={Zap} title="Acceleration" color="bg-[#f87171]/10 text-[var(--uav-danger)]" glowClass="hover:shadow-[0_0_30px_rgba(255,123,114,0.12)]">
-        <Line data={accelerationChartData} options={commonOptions} />
+        <TrackedLine data={accelerationChartData} options={commonOptions} lineIndex={accelLineIndex} />
       </ChartPanel>
     </div>
   );
