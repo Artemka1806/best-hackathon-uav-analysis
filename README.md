@@ -33,7 +33,11 @@ MVP for ArduPilot DataFlash `.BIN` log parsing, flight metric calculation, and 3
 - `backend/src/native/main.cpp` — ArduPilot binary parser and WGS-84 → ENU conversion.
 - `backend/src/services/flight_analysis.py` — mission metrics and normalized analysis payload.
 - `backend/src/api/router.py` — upload, analyze, and log-preview endpoints.
-- `backend/src/static/viewer.html` — single-file MVP preview UI.
+- `frontend/src/features/flight-analysis/` — main dashboard React components.
+- `frontend/src/components/cesium-viewer.tsx` — global 3D trajectory view.
+- `frontend/src/components/enu-viewer.tsx` — local 3D trajectory view with Three.js.
+- `frontend/src/components/telemetry-charts.tsx` — synchronized Chart.js graphs.
+- `frontend/src/components/ai-debrief.tsx` — AI chat assistant interface.
 
 ## Running with Docker Compose
 
@@ -160,21 +164,21 @@ flight_parser.analyze_flight_log(data)    # full analysis payload
 
 `analyze_flight_log` returns a dict with the following top-level keys:
 
-| Key | Description |
-|---|---|
-| `summary` | GPS/IMU message names used, point count, warnings, anomalies |
-| `sampling` | Estimated GPS and IMU sampling frequency (Hz) |
-| `metrics` | Duration, distance, max altitude gain, max speed, max acceleration |
-| `trajectory` | `enu` (ENU points + origin), `global` (lat/lon/alt points), `speed_series` |
-| `series` | KF-fused altitude, IMU speed, IMU acceleration time series |
-| `parameters` | All PARM entries from the log (`name`, `value`) |
-| `flight_modes` | MODE switches with timestamp and mode name |
-| `errors` | ERR entries with timestamp, subsystem, and error code |
-| `battery` | BAT/CURR voltage, current, and consumed mAh over time |
-| `gps_quality` | Per-sample fix type, HDOP, satellite count |
-| `attitude` | Roll/pitch/yaw time series from ATT/AHR2 |
-| `ai_context_toon` | Compact text representation of the above, sent to the AI |
-| `raw_preview` | List of all message types present in the log |
+| Key               | Description                                                                |
+| ----------------- | -------------------------------------------------------------------------- |
+| `summary`         | GPS/IMU message names used, point count, warnings, anomalies               |
+| `sampling`        | Estimated GPS and IMU sampling frequency (Hz)                              |
+| `metrics`         | Duration, distance, max altitude gain, max speed, max acceleration         |
+| `trajectory`      | `enu` (ENU points + origin), `global` (lat/lon/alt points), `speed_series` |
+| `series`          | KF-fused altitude, IMU speed, IMU acceleration time series                 |
+| `parameters`      | All PARM entries from the log (`name`, `value`)                            |
+| `flight_modes`    | MODE switches with timestamp and mode name                                 |
+| `errors`          | ERR entries with timestamp, subsystem, and error code                      |
+| `battery`         | BAT/CURR voltage, current, and consumed mAh over time                      |
+| `gps_quality`     | Per-sample fix type, HDOP, satellite count                                 |
+| `attitude`        | Roll/pitch/yaw time series from ATT/AHR2                                   |
+| `ai_context_toon` | Compact text representation of the above, sent to the AI                   |
+| `raw_preview`     | List of all message types present in the log                               |
 
 The result is sanitized with `core.utils.sanitize()` before being returned, which replaces `NaN` and `Inf` float values with `None` to prevent JSON serialization errors.
 
