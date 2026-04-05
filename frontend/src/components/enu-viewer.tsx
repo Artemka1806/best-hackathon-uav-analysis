@@ -34,7 +34,7 @@ function DroneModel({ enuPoint }: { enuPoint: EnuPoint | undefined }) {
     
     // We might need to adjust rotation order/signs depending on the model's forward direction.
     // Usually yaw is applied first.
-    droneRef.current.rotation.set(pitch, -yaw, roll, 'YXZ');
+    droneRef.current.rotation.set(pitch + Math.PI / 2, -yaw, roll, 'YXZ');
 
     // Disable frustum culling for the whole model
     scene.traverse((obj) => {

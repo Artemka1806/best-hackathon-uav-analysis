@@ -13,8 +13,8 @@ const scratchPosition = new Cesium.Cartesian3();
 const scratchHpr = new Cesium.HeadingPitchRoll();
 const scratchQuaternion = new Cesium.Quaternion();
 const fixOffset = Cesium.Quaternion.fromAxisAngle(
-  new Cesium.Cartesian3(1, 1, 1),
-  Cesium.Math.toRadians(0),
+  new Cesium.Cartesian3(1, 0, 0),
+  Cesium.Math.toRadians(90),
 );
 
 interface CesiumViewerProps {
@@ -314,6 +314,7 @@ export function CesiumViewer({
         );
 
         return scratchPosition;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }, false) as any,
       orientation: new Cesium.CallbackProperty(() => {
         const gPoint = globalPoints[timeIndexRef.current] || globalPoints[0];
@@ -344,6 +345,7 @@ export function CesiumViewer({
           fixOffset,
           scratchQuaternion,
         );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }, false) as any,
       model: {
         uri: droneModelUrl,
