@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 import { Trajectory, GlobalPoint, EnuPoint } from '@/types/analysis';
 import { BorderBeam } from '@/components/ui/border-beam';
-import { MapPin, Timer } from 'lucide-react';
+import { MapPin, Timer, Play, Pause } from 'lucide-react';
 import droneModelUrl from '@/assets/drone.glb';
 
 interface CesiumViewerProps {
@@ -18,10 +18,77 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
   const pathEntitiesRef = useRef<Cesium.Entity[]>([]);
   const uavEntityRef = useRef<Cesium.Entity | null>(null);
 
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const speedRef = useRef(playbackSpeed);
+
   const timeIndexRef = useRef(currentTimeIndex);
   useEffect(() => {
     timeIndexRef.current = currentTimeIndex;
   }, [currentTimeIndex]);
+
+  useEffect(() => {
+    speedRef.current = playbackSpeed;
+  }, [playbackSpeed]);
+
+  const onTimeChangeRef = useRef(onTimeChange);
+  useEffect(() => {
+    onTimeChangeRef.current = onTimeChange;
+  }, [onTimeChange]);
+
+  useEffect(() => {
+    if (!isPlaying || !trajectory || trajectory.points.length === 0) return;
+
+    let animationFrameId: number;
+    let lastRealTime = performance.now();
+    
+    let internalIndex = timeIndexRef.current;
+    let internalSimTime = Number(trajectory.points[internalIndex].t) / 1e6;
+    let lastSetIndex = internalIndex;
+
+    const loop = (time: number) => {
+      if (timeIndexRef.current !== lastSetIndex) {
+        internalIndex = timeIndexRef.current;
+        internalSimTime = Number(trajectory.points[internalIndex].t) / 1e6;
+        lastSetIndex = internalIndex;
+        lastRealTime = time;
+      }
+
+      const deltaMs = time - lastRealTime;
+      lastRealTime = time;
+
+      const dt = (deltaMs / 1000) * speedRef.current;
+      internalSimTime += dt;
+
+      const points = trajectory.points;
+      let nextIndex = internalIndex;
+      while (nextIndex < points.length - 1) {
+        const pointTime = Number(points[nextIndex + 1].t) / 1e6;
+        if (pointTime <= internalSimTime) {
+          nextIndex++;
+        } else {
+          break;
+        }
+      }
+
+      if (nextIndex !== internalIndex) {
+        internalIndex = nextIndex;
+        lastSetIndex = nextIndex;
+        onTimeChangeRef.current(nextIndex);
+      }
+
+      if (internalIndex >= points.length - 1) {
+        setIsPlaying(false);
+        return;
+      }
+
+      animationFrameId = requestAnimationFrame(loop);
+    };
+
+    animationFrameId = requestAnimationFrame(loop);
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isPlaying, trajectory]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -199,10 +266,39 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
       {/* Overlay Controls */}
       <div className="absolute left-3 right-3 md:left-4 md:right-4 bottom-3 md:bottom-4 flex gap-2.5 items-end flex-wrap z-10 pointer-events-none">
         {/* Playback Control */}
-        <div className="pointer-events-auto glass-panel rounded-xl p-3 flex-1 min-w-[200px] md:flex-none md:min-w-[380px]">
-          <div className="flex items-center gap-2 mb-2">
-            <Timer className="w-3 h-3 text-[var(--uav-accent)]" />
-            <span className="text-[10px] text-[var(--uav-muted)] uppercase tracking-widest font-semibold">Playback</span>
+        <div className="pointer-events-auto glass-panel rounded-xl p-3 flex-1 min-w-[200px] md:flex-none md:min-w-[380px] flex flex-col gap-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Timer className="w-3 h-3 text-[var(--uav-accent)]" />
+              <span className="text-[10px] text-[var(--uav-muted)] uppercase tracking-widest font-semibold">Playback</span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <select 
+                value={playbackSpeed}
+                onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
+                className="bg-transparent text-[10px] font-mono text-[var(--uav-text-secondary)] outline-none cursor-pointer p-0 m-0 border-none appearance-none"
+                disabled={!trajectory}
+              >
+                <option value={0.5} className="bg-[var(--uav-panel)]">0.5x</option>
+                <option value={1} className="bg-[var(--uav-panel)]">1.0x</option>
+                <option value={2} className="bg-[var(--uav-panel)]">2.0x</option>
+                <option value={5} className="bg-[var(--uav-panel)]">5.0x</option>
+              </select>
+              
+              <button 
+                onClick={() => {
+                  if (currentTimeIndex >= (trajectory?.points.length || 0) - 1) {
+                    onTimeChange(0); // restart if at the end
+                  }
+                  setIsPlaying(!isPlaying);
+                }}
+                disabled={!trajectory}
+                className="w-6 h-6 rounded bg-[var(--uav-primary)]/10 hover:bg-[var(--uav-primary)]/20 border border-[var(--uav-primary)]/20 flex items-center justify-center transition-colors disabled:opacity-50"
+              >
+                {isPlaying ? <Pause className="w-3 h-3 text-[var(--uav-primary)]" /> : <Play className="w-3 h-3 ml-0.5 text-[var(--uav-primary)]" />}
+              </button>
+            </div>
           </div>
           <input
             type="range"
