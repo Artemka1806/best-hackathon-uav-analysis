@@ -36,7 +36,12 @@ function DroneModel({ enuPoint }: { enuPoint: EnuPoint | undefined }) {
     // Usually yaw is applied first.
     droneRef.current.rotation.set(pitch, -yaw, roll, 'YXZ');
 
-  }, [enuPoint]);
+    // Disable frustum culling for the whole model
+    scene.traverse((obj) => {
+      obj.frustumCulled = false;
+    });
+
+  }, [enuPoint, scene]);
 
   return <primitive ref={droneRef} object={scene} scale={2} />;
 }
@@ -163,13 +168,23 @@ export function EnuViewer({ trajectory, colorMode, currentTimeIndex, onTimeChang
       />
 
       <div className="absolute inset-0 w-full h-full cursor-move">
-        <Canvas camera={{ position: [50, 50, 50], fov: 50 }}>
+        <Canvas 
+          camera={{ position: [50, 50, 50], fov: 50, far: 2000000 }}
+          gl={{ logarithmicDepthBuffer: true, antialias: true }}
+        >
           <color attach="background" args={['#02050A']} />
           <ambientLight intensity={0.6} />
           <directionalLight position={[10, 20, 10]} intensity={1.5} />
           <Environment preset="city" />
           
-          <Grid infiniteGrid fadeDistance={200} sectionColor="#4a6d7a" cellColor="#1e3440" />
+          <Grid 
+            infiniteGrid 
+            fadeDistance={100000} 
+            sectionSize={100} 
+            cellSize={10}
+            sectionColor="#4a6d7a" 
+            cellColor="#1e3440" 
+          />
 
           {positions.length > 0 && (
             <Line
@@ -177,16 +192,21 @@ export function EnuViewer({ trajectory, colorMode, currentTimeIndex, onTimeChang
               color="white"
               vertexColors={colors}
               lineWidth={3}
+              frustumCulled={false}
             />
           )}
 
           {currentPoint && <DroneModel enuPoint={currentPoint} />}
 
-          <OrbitControls makeDefault target={[
-            currentPoint?.e || 0,
-            currentPoint?.u || 0,
-            -(currentPoint?.n || 0)
-          ]} />
+          <OrbitControls 
+            makeDefault 
+            maxDistance={1500000}
+            target={[
+              currentPoint?.e || 0,
+              currentPoint?.u || 0,
+              -(currentPoint?.n || 0)
+            ]} 
+          />
         </Canvas>
       </div>
 
