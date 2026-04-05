@@ -260,11 +260,10 @@ py::dict build_trajectory_payload(
 
 py::dict build_altitude_series(const std::vector<GpsSample>& gps_samples) {
     py::list altitude;
-    double start_alt = gps_samples.front().alt_m;
     for (const auto& sample : gps_samples) {
         altitude.append(py::dict(
             "t"_a = round3(sample.time_s),
-            "value"_a = round3(sample.alt_m - start_alt)
+            "value"_a = round3(sample.alt_m)
         ));
     }
     py::dict result;
