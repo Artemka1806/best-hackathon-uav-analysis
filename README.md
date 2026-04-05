@@ -35,31 +35,62 @@ MVP for ArduPilot DataFlash `.BIN` log parsing, flight metric calculation, and 3
 - `backend/src/api/router.py` — upload, analyze, and log-preview endpoints.
 - `backend/src/static/viewer.html` — single-file MVP preview UI.
 
-## Requirements
+## Running with Docker Compose
 
-### System packages
+### 1. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and fill in the required values:
+
+```env
+GEMINI_API_KEY=your-gemini-api-key
+VITE_CESIUM_TOKEN=your-cesium-ion-token
+```
+
+All other values have sensible defaults and can be left as-is for local development.
+
+### 2. Start
+
+```bash
+docker compose up --build
+```
+
+- Frontend: `http://localhost:3000`
+- Backend API docs: `http://localhost:8000/docs`
+
+### 3. Stop
+
+```bash
+docker compose down
+```
+
+---
+
+## Running Locally (without Docker)
+
+### Requirements
 
 ```bash
 sudo apt-get update
 sudo apt-get install python3-dev cmake build-essential
 ```
 
-### Python
+Python 3.12+ is recommended.
 
-- Python 3.12+ is recommended.
-
-## Build Native Module
+### Build Native Module
 
 ```bash
 cd backend/src/native
 cmake -S . -B build
 cmake --build build
+mv build/flight_parser*.so .
 cd ../../..
 ```
 
-This produces the `flight_parser` Python extension used by the backend.
-
-## Install Python Dependencies
+### Install Python Dependencies
 
 ```bash
 python -m venv .venv
@@ -67,32 +98,32 @@ source .venv/bin/activate
 pip install -r backend/requirements.txt
 ```
 
-## Optional AI Setup
-
-AI summary is optional. The backend starts without AI credentials.
+### Configure Backend
 
 ```bash
 cp backend/.env.example backend/.env
+# set GEMINI_API_KEY in backend/.env
 ```
 
-Set:
-
-```env
-GEMINI_MODEL=gemini-2.0-flash
-GEMINI_API_KEY=your_key_here
-```
-
-## Run
+### Run Backend
 
 ```bash
 cd backend/src
 python main.py
 ```
 
+### Run Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
 Open:
 
+- Frontend: `http://localhost:5173`
 - API docs: `http://localhost:8000/docs`
-- MVP preview: `http://localhost:8000/static/viewer.html`
 
 ## Main API
 
