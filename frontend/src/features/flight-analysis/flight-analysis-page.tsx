@@ -169,14 +169,21 @@ function SidebarContent({
           <label className="text-[10px] text-[var(--uav-text-secondary)] uppercase tracking-widest font-semibold flex items-center gap-1.5">
             <Upload className="w-3 h-3" /> Flight Log
           </label>
-          <Input
-            type="file"
-            accept=".bin,.BIN"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-              if (e.target.files?.[0]) setFile(e.target.files[0]);
-            }}
-            className="bg-[var(--uav-bg-subtle)] border-white/5 text-xs h-10 file:text-[var(--uav-text-secondary)] file:text-[10px] file:font-medium file:bg-transparent file:border-0 hover:border-white/10 transition-colors cursor-pointer"
-          />
+          <label className={cn(
+            "flex items-center gap-2 h-10 px-3 rounded-md border text-xs cursor-pointer transition-colors bg-[var(--uav-bg-subtle)] hover:border-white/10",
+            file ? "border-[#6be3ff]/30 text-[var(--uav-text-secondary)]" : "border-white/5 text-[var(--uav-muted)]"
+          )}>
+            <Upload className="w-3 h-3 shrink-0" />
+            <span className="truncate">{file ? file.name : "Choose .BIN file…"}</span>
+            <input
+              type="file"
+              accept=".bin,.BIN"
+              className="sr-only"
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                if (e.target.files?.[0]) setFile(e.target.files[0]);
+              }}
+            />
+          </label>
         </div>
 
         <div className="flex gap-2">
@@ -374,6 +381,8 @@ export function FlightAnalysisPage() {
   const [colorMode, setColorMode] = useState<"speed" | "time">("speed");
   const [viewMode, setViewMode] = useState<"map" | "3d">("map");
   const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
 
   const [sidebarWidth, setSidebarWidth] = useState(380);
   const isDragging = useRef(false);
@@ -558,50 +567,110 @@ export function FlightAnalysisPage() {
             "flex-1 min-h-[360px] lg:min-h-0 relative rounded-2xl transition-all duration-1000",
             isAnalyzing && "glow-cyan-border animate-glow-pulse",
           )}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            dragCounterRef.current += 1;
+            setIsDragOver(true);
+          }}
+          onDragLeave={() => {
+            dragCounterRef.current -= 1;
+            if (dragCounterRef.current === 0) setIsDragOver(false);
+          }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            dragCounterRef.current = 0;
+            setIsDragOver(false);
+            const dropped = e.dataTransfer.files?.[0];
+            if (dropped) setFile(dropped);
+          }}
         >
           {/* View Mode Switch */}
-          <div className="absolute top-3 left-3 md:top-4 md:left-4 z-20">
-            <div className="glass-panel p-1 rounded-xl flex items-center pointer-events-auto">
-              <button
-                onClick={() => setViewMode("map")}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
-                  viewMode === "map"
-                    ? "bg-[#6be3ff]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]"
-                    : "text-[var(--uav-muted)] hover:text-[var(--uav-text)] hover:bg-white/5",
-                )}
-              >
-                Relief Map
-              </button>
-              <button
-                onClick={() => setViewMode("3d")}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
-                  viewMode === "3d"
-                    ? "bg-[#6be3ff]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]"
-                    : "text-[var(--uav-muted)] hover:text-[var(--uav-text)] hover:bg-white/5",
-                )}
-              >
-                Local 3D (ENU)
-              </button>
+          {analysis && (
+            <div className="absolute top-3 left-3 md:top-4 md:left-4 z-20">
+              <div className="glass-panel p-1 rounded-xl flex items-center pointer-events-auto">
+                <button
+                  onClick={() => setViewMode("map")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
+                    viewMode === "map"
+                      ? "bg-[#6be3ff]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]"
+                      : "text-[var(--uav-muted)] hover:text-[var(--uav-text)] hover:bg-white/5",
+                  )}
+                >
+                  Relief Map
+                </button>
+                <button
+                  onClick={() => setViewMode("3d")}
+                  className={cn(
+                    "px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
+                    viewMode === "3d"
+                      ? "bg-[#6be3ff]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]"
+                      : "text-[var(--uav-muted)] hover:text-[var(--uav-text)] hover:bg-white/5",
+                  )}
+                >
+                  Local 3D (ENU)
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
-          {viewMode === "map" ? (
+          {/* Empty state — no file loaded */}
+          {!analysis && !isAnalyzing && (
+            <div className="w-full h-full rounded-2xl bg-[var(--uav-bg-subtle)] border border-white/5 flex flex-col items-center justify-center gap-4 select-none">
+              <div className="p-4 rounded-2xl bg-[#6be3ff]/5 border border-[#6be3ff]/10">
+                <Upload className="w-8 h-8 text-[var(--uav-primary)]/40" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-sm font-medium text-[var(--uav-text-secondary)]">No flight loaded</p>
+                <p className="text-xs text-[var(--uav-muted)]">Select a .BIN file in the sidebar or drop it here</p>
+              </div>
+            </div>
+          )}
+
+          {/* Analyzing placeholder */}
+          {isAnalyzing && (
+            <div className="w-full h-full rounded-2xl bg-[var(--uav-bg-subtle)] border border-[#6be3ff]/20 flex flex-col items-center justify-center gap-3">
+              <Loader2 className="w-8 h-8 text-[var(--uav-primary)] animate-spin" />
+              <p className="text-xs text-[var(--uav-text-secondary)]">Parsing telemetry…</p>
+            </div>
+          )}
+
+          {/* Viewers */}
+          {analysis && viewMode === "map" && (
             <CesiumViewer
-              trajectory={analysis?.trajectory || null}
-              colorMode={colorMode}
-              currentTimeIndex={currentTimeIndex}
-              onTimeChange={setCurrentTimeIndex}
-            />
-          ) : (
-            <EnuViewer
-              trajectory={analysis?.trajectory || null}
+              trajectory={analysis.trajectory}
               colorMode={colorMode}
               currentTimeIndex={currentTimeIndex}
               onTimeChange={setCurrentTimeIndex}
             />
           )}
+          {analysis && viewMode === "3d" && (
+            <EnuViewer
+              trajectory={analysis.trajectory}
+              colorMode={colorMode}
+              currentTimeIndex={currentTimeIndex}
+              onTimeChange={setCurrentTimeIndex}
+            />
+          )}
+
+          {/* Drag-over overlay */}
+          <AnimatePresence>
+            {isDragOver && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="absolute inset-0 z-30 rounded-2xl bg-[var(--uav-bg)]/80 backdrop-blur-sm border-2 border-dashed border-[#6be3ff]/60 flex flex-col items-center justify-center gap-3 pointer-events-none"
+              >
+                <div className="p-4 rounded-2xl bg-[#6be3ff]/10 border border-[#6be3ff]/20">
+                  <Upload className="w-8 h-8 text-[var(--uav-primary)]" />
+                </div>
+                <p className="text-sm font-semibold text-[var(--uav-primary)]">Drop .BIN file here</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.section>
 
         {/* Telemetry Charts */}
