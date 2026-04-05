@@ -314,7 +314,7 @@ export function CesiumViewer({
         );
 
         return scratchPosition;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }, false) as any,
       orientation: new Cesium.CallbackProperty(() => {
         const gPoint = globalPoints[timeIndexRef.current] || globalPoints[0];
@@ -345,7 +345,7 @@ export function CesiumViewer({
           fixOffset,
           scratchQuaternion,
         );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }, false) as any,
       model: {
         uri: droneModelUrl,
