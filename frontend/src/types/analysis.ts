@@ -9,7 +9,8 @@ export interface Point {
 }
 
 export interface Trajectory {
-  points: Point[];
+  points?: Point[];
+  global?: { points: Point[] };
   speed_series?: { t: number | string; value: number }[];
 }
 
