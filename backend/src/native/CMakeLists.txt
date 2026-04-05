@@ -44,9 +44,18 @@ FetchContent_MakeAvailable(eigen)
 # It creates a shared library with the correct extension for Python.
 # The first argument is the name of the module.
 # The second argument lists the source files.
-pybind11_add_module(flight_parser main.cpp)
+pybind11_add_module(flight_parser
+src/main.cpp
+src/math_utils.cpp
+src/bin_parser.cpp
+src/flight_analysis.cpp
+src/pybind_formatters.cpp
+)
 
 # --- Link Dependencies ---
 # For Eigen, we need to add its include directory to our target.
 # pybind11 handles its own include directories automatically.
-target_include_directories(flight_parser PRIVATE ${eigen_SOURCE_DIR})
+target_include_directories(flight_parser PRIVATE
+${eigen_SOURCE_DIR}
+${CMAKE_CURRENT_SOURCE_DIR}/include
+)
