@@ -1,9 +1,21 @@
-import React, { useEffect, useRef, useState } from 'react';
-import * as Cesium from 'cesium';
-import { Trajectory, GlobalPoint, EnuPoint } from '@/types/analysis';
-import { BorderBeam } from '@/components/ui/border-beam';
-import { MapPin, Timer, Play, Pause } from 'lucide-react';
-import droneModelUrl from '@/assets/drone.glb';
+import React, { useEffect, useRef, useState } from "react";
+import * as Cesium from "cesium";
+import { Trajectory, GlobalPoint, EnuPoint } from "@/types/analysis";
+import { BorderBeam } from "@/components/ui/border-beam";
+import { MapPin, Timer, Play, Pause } from "lucide-react";
+import droneModelUrl from "@/assets/drone.glb";
+
+// Scratch variables for high-frequency callbacks to prevent GC pauses
+const scratchCenter = new Cesium.Cartesian3();
+const scratchOffset = new Cesium.Cartesian3();
+const scratchTransform = new Cesium.Matrix4();
+const scratchPosition = new Cesium.Cartesian3();
+const scratchHpr = new Cesium.HeadingPitchRoll();
+const scratchQuaternion = new Cesium.Quaternion();
+const fixOffset = Cesium.Quaternion.fromAxisAngle(
+  new Cesium.Cartesian3(0, 1, 0),
+  Cesium.Math.toRadians(90)
+);
 
 interface CesiumViewerProps {
   trajectory: Trajectory | null;
@@ -20,13 +32,12 @@ export function CesiumViewer({
 }: CesiumViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
-  const pathEntitiesRef = useRef<Cesium.Entity[]>([]);
+  const pathPrimitiveRef = useRef<Cesium.Primitive | null>(null);
   const uavEntityRef = useRef<Cesium.Entity | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const speedRef = useRef(playbackSpeed);
-  const activePoints = trajectory?.global?.points || [];
 
   const timeIndexRef = useRef(currentTimeIndex);
   useEffect(() => {
@@ -48,7 +59,7 @@ export function CesiumViewer({
 
     let animationFrameId: number;
     let lastRealTime = performance.now();
-    
+
     let internalIndex = timeIndexRef.current;
     let internalSimTime = Number(globalPoints[internalIndex].t) / 1e6;
     let lastSetIndex = internalIndex;
@@ -81,6 +92,9 @@ export function CesiumViewer({
         internalIndex = nextIndex;
         lastSetIndex = nextIndex;
         onTimeChangeRef.current(nextIndex);
+        if (viewerRef.current) {
+          viewerRef.current.scene.requestRender();
+        }
       }
 
       if (internalIndex >= globalPoints.length - 1) {
@@ -113,21 +127,30 @@ export function CesiumViewer({
       animation: false,
       timeline: false,
       fullscreenButton: false,
+      skyAtmosphere: false,
+      skyBox: false,
       creditContainer: document.createElement("div"),
+      requestRenderMode: true,
+      maximumRenderTimeChange: Infinity,
     });
+
+    // Set background to a dark color to match the theme
+    viewer.scene.backgroundColor = Cesium.Color.fromCssColorString('#02050A');
 
     Cesium.createWorldTerrainAsync({
       requestWaterMask: false,
-      requestVertexNormals: true,
+      requestVertexNormals: false,
     })
       .then((terrainProvider) => {
         if (!viewer.isDestroyed()) {
           viewer.terrainProvider = terrainProvider;
+          viewer.scene.requestRender();
         }
       })
       .catch(() => {
         if (!viewer.isDestroyed()) {
           viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
+          viewer.scene.requestRender();
         }
       });
 
@@ -173,18 +196,22 @@ export function CesiumViewer({
     const enuPoints: EnuPoint[] = trajectory?.enu?.points || [];
     if (!viewer || !trajectory || !globalPoints.length) return;
 
-    pathEntitiesRef.current.forEach((entity) => viewer.entities.remove(entity));
-    pathEntitiesRef.current = [];
+    if (pathPrimitiveRef.current) {
+      viewer.scene.primitives.remove(pathPrimitiveRef.current);
+      pathPrimitiveRef.current = null;
+    }
     if (uavEntityRef.current) {
       viewer.entities.remove(uavEntityRef.current);
       uavEntityRef.current = null;
     }
 
     const speedSeries = trajectory.speed_series || [];
-    const speedLookup = new Map(speedSeries.map(item => [Number(item.t).toFixed(3), item.value]));
+    const speedLookup = new Map(
+      speedSeries.map((item) => [Number(item.t).toFixed(3), item.value]),
+    );
 
     const values = globalPoints.map((point, index) => {
-      if (colorMode === 'time') return index;
+      if (colorMode === "time") return index;
       const key = (Number(point.t) / 1e6).toFixed(3);
       return speedLookup.get(key) ?? 0;
     });
@@ -192,80 +219,118 @@ export function CesiumViewer({
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
 
-    for (let index = 1; index < globalPoints.length; index++) {
-      const prev = globalPoints[index - 1];
-      const current = globalPoints[index];
-      const color = getMetricColor(values[index], minValue, maxValue);
+    let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
 
-      const entity = viewer.entities.add({
-        polyline: {
-          positions: [
-            Cesium.Cartesian3.fromDegrees(
-              Number(prev.lon),
-              Number(prev.lat),
-              Number(prev.alt),
-            ),
-            Cesium.Cartesian3.fromDegrees(
-              Number(current.lon),
-              Number(current.lat),
-              Number(current.alt),
-            ),
-          ],
-          width: 5,
-          material: color,
-          clampToGround: false,
-        },
-      });
-      pathEntitiesRef.current.push(entity);
+    const positions = new Array(globalPoints.length);
+    const colors = new Array(globalPoints.length);
+
+    for (let index = 0; index < globalPoints.length; index++) {
+      const point = globalPoints[index];
+      const lat = Number(point.lat);
+      const lon = Number(point.lon);
+      
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+      if (lon < minLon) minLon = lon;
+      if (lon > maxLon) maxLon = lon;
+
+      positions[index] = Cesium.Cartesian3.fromDegrees(
+        lon,
+        lat,
+        Number(point.alt)
+      );
+      colors[index] = getMetricColor(values[index], minValue, maxValue);
     }
+
+    // Limit the rendered globe to a ~5km radius around the flight
+    // 1 degree lat is ~111km, so 5km is ~0.045 degrees
+    const latBuffer = 0.045;
+    // Longitude scale depends on latitude
+    const lonBuffer = 0.045 / Math.max(0.1, Math.cos(Cesium.Math.toRadians(minLat)));
+    
+    viewer.scene.globe.cartographicLimitRectangle = Cesium.Rectangle.fromDegrees(
+      minLon - lonBuffer,
+      minLat - latBuffer,
+      maxLon + lonBuffer,
+      maxLat + latBuffer
+    );
+
+    const geometry = new Cesium.PolylineGeometry({
+      positions: positions,
+      colors: colors,
+      width: 5.0,
+      colorsPerVertex: true,
+      arcType: Cesium.ArcType.NONE,
+    });
+
+    const instance = new Cesium.GeometryInstance({
+      geometry: geometry,
+    });
+
+    const primitive = new Cesium.Primitive({
+      geometryInstances: instance,
+      appearance: new Cesium.PolylineColorAppearance(),
+      asynchronous: true,
+    });
+
+    viewer.scene.primitives.add(primitive);
+    pathPrimitiveRef.current = primitive;
 
     const uavEntity = viewer.entities.add({
       position: new Cesium.CallbackProperty(() => {
         const point = globalPoints[timeIndexRef.current] || globalPoints[0];
         const ePoint = enuPoints[timeIndexRef.current] || enuPoints[0];
-        const center = Cesium.Cartesian3.fromDegrees(
+        
+        Cesium.Cartesian3.fromDegrees(
           Number(point.lon),
-          Number(point.lat) + 0.00045, // Slight offset to the South to better align with the path
+          Number(point.lat),
           Number(point.alt),
+          viewer.scene.globe.ellipsoid,
+          scratchCenter
         );
 
         const yawRad = Cesium.Math.toRadians(Number(ePoint?.yaw || 0));
-        const MODEL_LENGTH_OFFSET = 1.5; // Offset backwards in meters
 
-        // Calculate offset in local ENU frame (East-North-Up)
-        // Yaw 0 is North. Moving backward is -sin(yaw) for East(X), -cos(yaw) for North(Y)
-        const offsetX = -Math.sin(yawRad) * MODEL_LENGTH_OFFSET;
-        const offsetY = -Math.cos(yawRad) * MODEL_LENGTH_OFFSET;
+        const offsetX = -Math.sin(yawRad);
+        const offsetY = -Math.cos(yawRad);
 
-        const localOffset = new Cesium.Cartesian3(offsetX, offsetY, 0);
-        const transform = Cesium.Transforms.eastNorthUpToFixedFrame(center);
-        const newPosition = new Cesium.Cartesian3();
-        Cesium.Matrix4.multiplyByPoint(transform, localOffset, newPosition);
+        scratchOffset.x = offsetX;
+        scratchOffset.y = offsetY;
+        scratchOffset.z = 0;
+        
+        Cesium.Transforms.eastNorthUpToFixedFrame(scratchCenter, viewer.scene.globe.ellipsoid, scratchTransform);
+        Cesium.Matrix4.multiplyByPoint(scratchTransform, scratchOffset, scratchPosition);
 
-        return newPosition;
+        return scratchPosition;
       }, false) as any,
       orientation: new Cesium.CallbackProperty(() => {
         const gPoint = globalPoints[timeIndexRef.current] || globalPoints[0];
         const ePoint = enuPoints[timeIndexRef.current] || enuPoints[0];
-        const pos = Cesium.Cartesian3.fromDegrees(Number(gPoint.lon), Number(gPoint.lat), Number(gPoint.alt));
-        const hpr = new Cesium.HeadingPitchRoll(
-          Cesium.Math.toRadians(Number(ePoint?.yaw || 0) + 90),
-          Cesium.Math.toRadians(Number(ePoint?.pitch || 0)),
-          Cesium.Math.toRadians(Number(ePoint?.roll || 0))
+        
+        Cesium.Cartesian3.fromDegrees(
+          Number(gPoint.lon),
+          Number(gPoint.lat),
+          Number(gPoint.alt),
+          viewer.scene.globe.ellipsoid,
+          scratchCenter
         );
-        // Model is oriented with its top as "forward" — rotate -90° pitch to align with Cesium's ENU frame
-        const fixOffset = Cesium.Quaternion.fromAxisAngle(
-          new Cesium.Cartesian3(0, 1, 0),
-          Cesium.Math.toRadians(90),
+        
+        scratchHpr.heading = Cesium.Math.toRadians(Number(ePoint?.yaw || 0) + 90);
+        scratchHpr.pitch = Cesium.Math.toRadians(Number(ePoint?.pitch || 0));
+        scratchHpr.roll = Cesium.Math.toRadians(Number(ePoint?.roll || 0));
+        
+        Cesium.Transforms.headingPitchRollQuaternion(
+          scratchCenter,
+          scratchHpr,
+          viewer.scene.globe.ellipsoid,
+          Cesium.Transforms.eastNorthUpToFixedFrame,
+          scratchQuaternion
         );
-        const orientation = Cesium.Transforms.headingPitchRollQuaternion(
-          pos,
-          hpr,
-        );
+        
         return Cesium.Quaternion.multiply(
-          orientation,
+          scratchQuaternion,
           fixOffset,
-          new Cesium.Quaternion(),
+          scratchQuaternion
         );
       }, false) as any,
       model: {
@@ -345,23 +410,33 @@ export function CesiumViewer({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Timer className="w-3 h-3 text-[var(--uav-accent)]" />
-              <span className="text-[10px] text-[var(--uav-muted)] uppercase tracking-widest font-semibold">Playback</span>
+              <span className="text-[10px] text-[var(--uav-muted)] uppercase tracking-widest font-semibold">
+                Playback
+              </span>
             </div>
-            
+
             <div className="flex items-center gap-2">
-              <select 
+              <select
                 value={playbackSpeed}
                 onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
                 className="bg-transparent text-[10px] font-mono text-[var(--uav-text-secondary)] outline-none cursor-pointer p-0 m-0 border-none appearance-none"
                 disabled={!trajectory}
               >
-                <option value={0.5} className="bg-[var(--uav-panel)]">0.5x</option>
-                <option value={1} className="bg-[var(--uav-panel)]">1.0x</option>
-                <option value={2} className="bg-[var(--uav-panel)]">2.0x</option>
-                <option value={5} className="bg-[var(--uav-panel)]">5.0x</option>
+                <option value={0.5} className="bg-[var(--uav-panel)]">
+                  0.5x
+                </option>
+                <option value={1} className="bg-[var(--uav-panel)]">
+                  1.0x
+                </option>
+                <option value={2} className="bg-[var(--uav-panel)]">
+                  2.0x
+                </option>
+                <option value={5} className="bg-[var(--uav-panel)]">
+                  5.0x
+                </option>
               </select>
-              
-              <button 
+
+              <button
                 onClick={() => {
                   if (currentTimeIndex >= (globalPoints.length || 0) - 1) {
                     onTimeChange(0); // restart if at the end
@@ -371,7 +446,11 @@ export function CesiumViewer({
                 disabled={!trajectory}
                 className="w-6 h-6 rounded bg-[var(--uav-primary)]/10 hover:bg-[var(--uav-primary)]/20 border border-[var(--uav-primary)]/20 flex items-center justify-center transition-colors disabled:opacity-50"
               >
-                {isPlaying ? <Pause className="w-3 h-3 text-[var(--uav-primary)]" /> : <Play className="w-3 h-3 ml-0.5 text-[var(--uav-primary)]" />}
+                {isPlaying ? (
+                  <Pause className="w-3 h-3 text-[var(--uav-primary)]" />
+                ) : (
+                  <Play className="w-3 h-3 ml-0.5 text-[var(--uav-primary)]" />
+                )}
               </button>
             </div>
           </div>
