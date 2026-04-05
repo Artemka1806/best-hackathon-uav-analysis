@@ -2,6 +2,8 @@
 
 MVP for ArduPilot DataFlash `.BIN` log parsing, flight metric calculation, and 3D mission preview.
 
+[![Netlify Status](https://api.netlify.com/api/v1/badges/7f414f34-9052-47c0-8428-2f05eb8ce4f7/deploy-status)](https://app.netlify.com/projects/best-type-shit/deploys)
+
 ## Why This Stack
 
 - `FastAPI` gives a fast upload API and a simple way to serve the MVP preview from the same backend.
