@@ -154,8 +154,7 @@ The heavy lifting — binary parsing, coordinate math, Kalman filtering — is d
 import flight_parser  # flight_parser.cpython-*.so
 
 flight_parser.parse_ardupilot_bin(data)   # raw message-type dict
-flight_parser.convert_gps_to_enu(data)    # GPS → local ENU meters
-flight_parser.analyze_flight_log(data)    # full analysis payload
+flight_parser.analyze_flight_log(data)    # full analysis payload ENU, Global and speed series
 ```
 
 `analyze_flight_log` returns a dict with the following top-level keys:
