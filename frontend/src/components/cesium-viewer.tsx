@@ -7,12 +7,17 @@ import droneModelUrl from '@/assets/drone.glb';
 
 interface CesiumViewerProps {
   trajectory: Trajectory | null;
-  colorMode: 'speed' | 'time';
+  colorMode: "speed" | "time";
   currentTimeIndex: number;
   onTimeChange: (index: number) => void;
 }
 
-export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeChange }: CesiumViewerProps) {
+export function CesiumViewer({
+  trajectory,
+  colorMode,
+  currentTimeIndex,
+  onTimeChange,
+}: CesiumViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Cesium.Viewer | null>(null);
   const pathEntitiesRef = useRef<Cesium.Entity[]>([]);
@@ -21,6 +26,7 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const speedRef = useRef(playbackSpeed);
+  const activePoints = trajectory?.global?.points || [];
 
   const timeIndexRef = useRef(currentTimeIndex);
   useEffect(() => {
@@ -93,22 +99,27 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
   useEffect(() => {
     if (!containerRef.current) return;
 
-    Cesium.Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_TOKEN ?? '';
+    Cesium.Ion.defaultAccessToken = import.meta.env.VITE_CESIUM_TOKEN ?? "";
 
     const viewer = new Cesium.Viewer(containerRef.current, {
       baseLayer: false,
       baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
+      infoBox: false,
+      selectionIndicator: false,
       sceneModePicker: false,
       navigationHelpButton: false,
       animation: false,
       timeline: false,
       fullscreenButton: false,
-      creditContainer: document.createElement('div'),
+      creditContainer: document.createElement("div"),
     });
 
-    Cesium.createWorldTerrainAsync({ requestWaterMask: false, requestVertexNormals: true })
+    Cesium.createWorldTerrainAsync({
+      requestWaterMask: false,
+      requestVertexNormals: true,
+    })
       .then((terrainProvider) => {
         if (!viewer.isDestroyed()) {
           viewer.terrainProvider = terrainProvider;
@@ -121,9 +132,9 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
       });
 
     const satelliteProvider = new Cesium.UrlTemplateImageryProvider({
-      url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       maximumLevel: 19,
-      credit: new Cesium.Credit('Tiles © Esri'),
+      credit: new Cesium.Credit("Tiles © Esri"),
     });
 
     viewer.imageryLayers.removeAll();
@@ -143,8 +154,13 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
   }, []);
 
   const getMetricColor = (value: number, min: number, max: number) => {
-    if (!Number.isFinite(value) || !Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
-      return Cesium.Color.fromCssColorString('#6be3ff');
+    if (
+      !Number.isFinite(value) ||
+      !Number.isFinite(min) ||
+      !Number.isFinite(max) ||
+      max <= min
+    ) {
+      return Cesium.Color.fromCssColorString("#6be3ff");
     }
     const normalized = Math.min(1, Math.max(0, (value - min) / (max - min)));
     const hue = (1 - normalized) * 0.62;
@@ -157,7 +173,7 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
     const enuPoints: EnuPoint[] = trajectory?.enu?.points || [];
     if (!viewer || !trajectory || !globalPoints.length) return;
 
-    pathEntitiesRef.current.forEach(entity => viewer.entities.remove(entity));
+    pathEntitiesRef.current.forEach((entity) => viewer.entities.remove(entity));
     pathEntitiesRef.current = [];
     if (uavEntityRef.current) {
       viewer.entities.remove(uavEntityRef.current);
@@ -184,8 +200,16 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
       const entity = viewer.entities.add({
         polyline: {
           positions: [
-            Cesium.Cartesian3.fromDegrees(Number(prev.lon), Number(prev.lat), Number(prev.alt)),
-            Cesium.Cartesian3.fromDegrees(Number(current.lon), Number(current.lat), Number(current.alt)),
+            Cesium.Cartesian3.fromDegrees(
+              Number(prev.lon),
+              Number(prev.lat),
+              Number(prev.alt),
+            ),
+            Cesium.Cartesian3.fromDegrees(
+              Number(current.lon),
+              Number(current.lat),
+              Number(current.alt),
+            ),
           ],
           width: 5,
           material: color,
@@ -209,13 +233,20 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
           Cesium.Math.toRadians(Number(ePoint?.pitch || 0)),
           Cesium.Math.toRadians(Number(ePoint?.roll || 0))
         );
-        const orientation = Cesium.Transforms.headingPitchRollQuaternion(pos, hpr);
         // Model is oriented with its top as "forward" — rotate -90° pitch to align with Cesium's ENU frame
         const fixOffset = Cesium.Quaternion.fromAxisAngle(
           new Cesium.Cartesian3(0, 1, 0),
-          Cesium.Math.toRadians(90)
+          Cesium.Math.toRadians(90),
         );
-        return Cesium.Quaternion.multiply(orientation, fixOffset, new Cesium.Quaternion());
+        const orientation = Cesium.Transforms.headingPitchRollQuaternion(
+          pos,
+          hpr,
+        );
+        return Cesium.Quaternion.multiply(
+          orientation,
+          fixOffset,
+          new Cesium.Quaternion(),
+        );
       }, false) as any,
       model: {
         uri: droneModelUrl,
@@ -229,10 +260,14 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
 
     const first = globalPoints[0];
     viewer.camera.flyTo({
-      destination: Cesium.Cartesian3.fromDegrees(Number(first.lon), Number(first.lat), Number(first.alt) + 250),
+      destination: Cesium.Cartesian3.fromDegrees(
+        Number(first.lon) + 0.0015, // Offset to the East
+        Number(first.lat) - 0.0015, // Offset to the South
+        Number(first.alt) + 120,    // Height above drone
+      ),
       orientation: {
-        heading: 0,
-        pitch: Cesium.Math.toRadians(-40),
+        heading: Cesium.Math.toRadians(315), // Looking North-West towards the drone
+        pitch: Cesium.Math.toRadians(-30),
         roll: 0,
       },
       duration: 1.8,
@@ -262,6 +297,26 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
 
       {/* Cesium Container */}
       <div ref={containerRef} className="absolute inset-0 w-full h-full" />
+
+      {/* Interaction Hints */}
+      <div className="absolute right-3 md:right-4 top-3 md:top-4 flex flex-col gap-1.5 z-10 pointer-events-none">
+        <div className="glass-panel rounded-lg px-2.5 py-1.5 flex items-center gap-2 border-white/5 bg-[var(--uav-panel)]/80 backdrop-blur-sm">
+          <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-[var(--uav-text)] border border-white/10">
+            CTRL
+          </kbd>
+          <span className="text-[10px] text-[var(--uav-muted)] font-bold uppercase tracking-wider">
+            Rotate
+          </span>
+        </div>
+        <div className="glass-panel rounded-lg px-2.5 py-1.5 flex items-center gap-2 border-white/5 bg-[var(--uav-panel)]/80 backdrop-blur-sm">
+          <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-[var(--uav-text)] border border-white/10">
+            SHIFT
+          </kbd>
+          <span className="text-[10px] text-[var(--uav-muted)] font-bold uppercase tracking-wider">
+            Tilt
+          </span>
+        </div>
+      </div>
 
       {/* Overlay Controls */}
       <div className="absolute left-3 right-3 md:left-4 md:right-4 bottom-3 md:bottom-4 flex gap-2.5 items-end flex-wrap z-10 pointer-events-none">
@@ -307,7 +362,7 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
             value={currentTimeIndex}
             onChange={(e) => onTimeChange(Number(e.target.value))}
             className="w-full"
-            disabled={!trajectory}
+            disabled={globalPoints.length === 0}
           />
         </div>
 
@@ -315,13 +370,25 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
         <div className="pointer-events-auto glass-panel rounded-xl p-3">
           <div className="flex items-center gap-2 mb-1.5">
             <MapPin className="w-3 h-3 text-[var(--uav-primary)]" />
-            <span className="text-[10px] text-[var(--uav-muted)] uppercase tracking-widest font-semibold">Position</span>
+            <span className="text-[10px] text-[var(--uav-muted)] uppercase tracking-widest font-semibold">
+              Position
+            </span>
           </div>
           <div className="text-xs font-mono text-[var(--uav-text)] flex gap-3">
             {currentPoint ? (
               <>
-                <span className="text-[var(--uav-text-secondary)]">t: <span className="text-[var(--uav-text)]">{(Number(currentPoint.t) / 1e6).toFixed(2)}s</span></span>
-                <span className="text-[var(--uav-text-secondary)]">alt: <span className="text-[var(--uav-primary)]">{Number(currentPoint.alt).toFixed(1)}m</span></span>
+                <span className="text-[var(--uav-text-secondary)]">
+                  t:{" "}
+                  <span className="text-[var(--uav-text)]">
+                    {(Number(currentPoint.t) / 1e6).toFixed(2)}s
+                  </span>
+                </span>
+                <span className="text-[var(--uav-text-secondary)]">
+                  alt:{" "}
+                  <span className="text-[var(--uav-primary)]">
+                    {Number(currentPoint.alt).toFixed(1)}m
+                  </span>
+                </span>
               </>
             ) : (
               <span className="text-[var(--uav-muted)]">No data</span>
@@ -331,15 +398,19 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
       </div>
 
       {/* Empty state overlay */}
-      {!trajectory && (
+      {globalPoints.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
           <div className="text-center space-y-3 p-8">
             <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-center mx-auto">
               <MapPin className="w-7 h-7 text-[var(--uav-muted)]/50" />
             </div>
             <div>
-              <p className="text-sm text-[var(--uav-muted)] font-medium">No trajectory loaded</p>
-              <p className="text-xs text-[var(--uav-muted)]/50 mt-1">Upload and analyze a flight log to view the 3D trajectory</p>
+              <p className="text-sm text-[var(--uav-muted)] font-medium">
+                No trajectory loaded
+              </p>
+              <p className="text-xs text-[var(--uav-muted)]/50 mt-1">
+                Upload and analyze a flight log to view the 3D trajectory
+              </p>
             </div>
           </div>
         </div>
