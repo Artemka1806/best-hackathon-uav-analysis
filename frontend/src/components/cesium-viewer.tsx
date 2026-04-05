@@ -23,7 +23,7 @@ export function CesiumViewer({
   const pathEntitiesRef = useRef<Cesium.Entity[]>([]);
   const uavEntityRef = useRef<Cesium.Entity | null>(null);
 
-  const activePoints = trajectory?.global?.points || trajectory?.points || [];
+  const activePoints = trajectory?.global || trajectory?.points || [];
 
   const timeIndexRef = useRef(currentTimeIndex);
   useEffect(() => {
