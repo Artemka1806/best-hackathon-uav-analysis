@@ -157,11 +157,26 @@ export function CesiumViewer({
     const uavEntity = viewer.entities.add({
       position: new Cesium.CallbackProperty(() => {
         const point = points[timeIndexRef.current] || points[0];
-        return Cesium.Cartesian3.fromDegrees(
+        const center = Cesium.Cartesian3.fromDegrees(
           Number(point.lon),
-          Number(point.lat),
+          Number(point.lat) + 0.00045, // Slight offset to the South to better align with the path
           Number(point.alt),
         );
+
+        const yawRad = Cesium.Math.toRadians(Number(point.yaw || 0));
+        const MODEL_LENGTH_OFFSET = 1.5; // Offset backwards in meters
+
+        // Calculate offset in local ENU frame (East-North-Up)
+        // Yaw 0 is North. Moving backward is -sin(yaw) for East(X), -cos(yaw) for North(Y)
+        const offsetX = -Math.sin(yawRad) * MODEL_LENGTH_OFFSET;
+        const offsetY = -Math.cos(yawRad) * MODEL_LENGTH_OFFSET;
+
+        const localOffset = new Cesium.Cartesian3(offsetX, offsetY, 0);
+        const transform = Cesium.Transforms.eastNorthUpToFixedFrame(center);
+        const newPosition = new Cesium.Cartesian3();
+        Cesium.Matrix4.multiplyByPoint(transform, localOffset, newPosition);
+
+        return newPosition;
       }, false) as any,
       orientation: new Cesium.CallbackProperty(() => {
         const point = points[timeIndexRef.current] || points[0];
@@ -171,7 +186,7 @@ export function CesiumViewer({
           Number(point.alt),
         );
         const hpr = new Cesium.HeadingPitchRoll(
-          Cesium.Math.toRadians(Number(point.yaw || 0)),
+          Cesium.Math.toRadians(Number(point.yaw || 0) + 90),
           Cesium.Math.toRadians(Number(point.pitch || 0)),
           Cesium.Math.toRadians(Number(point.roll || 0)),
         );
@@ -203,13 +218,13 @@ export function CesiumViewer({
     const first = points[0];
     viewer.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(
-        Number(first.lon) + 0.0015, // Offset to the East
-        Number(first.lat) - 0.0015, // Offset to the South
-        Number(first.alt) + 120,    // Height above drone
+        Number(first.lon) + 0.001, // Closer offset to the East
+        Number(first.lat), // Same latitude (looking straight from the side)
+        Number(first.alt) + 40, // Much lower height, closer to the drone's level
       ),
       orientation: {
-        heading: Cesium.Math.toRadians(315), // Looking North-West towards the drone
-        pitch: Cesium.Math.toRadians(-30),
+        heading: Cesium.Math.toRadians(270), // Looking directly West towards the drone
+        pitch: Cesium.Math.toRadians(-15), // Shallower angle, looking almost straight ahead
         roll: 0,
       },
       duration: 1.8,
