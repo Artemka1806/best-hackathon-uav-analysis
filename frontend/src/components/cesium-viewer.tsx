@@ -37,19 +37,20 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
   }, [onTimeChange]);
 
   useEffect(() => {
-    if (!isPlaying || !trajectory || trajectory.points.length === 0) return;
+    const globalPoints = trajectory?.global?.points;
+    if (!isPlaying || !globalPoints || globalPoints.length === 0) return;
 
     let animationFrameId: number;
     let lastRealTime = performance.now();
     
     let internalIndex = timeIndexRef.current;
-    let internalSimTime = Number(trajectory.points[internalIndex].t) / 1e6;
+    let internalSimTime = Number(globalPoints[internalIndex].t) / 1e6;
     let lastSetIndex = internalIndex;
 
     const loop = (time: number) => {
       if (timeIndexRef.current !== lastSetIndex) {
         internalIndex = timeIndexRef.current;
-        internalSimTime = Number(trajectory.points[internalIndex].t) / 1e6;
+        internalSimTime = Number(globalPoints[internalIndex].t) / 1e6;
         lastSetIndex = internalIndex;
         lastRealTime = time;
       }
@@ -60,10 +61,9 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
       const dt = (deltaMs / 1000) * speedRef.current;
       internalSimTime += dt;
 
-      const points = trajectory.points;
       let nextIndex = internalIndex;
-      while (nextIndex < points.length - 1) {
-        const pointTime = Number(points[nextIndex + 1].t) / 1e6;
+      while (nextIndex < globalPoints.length - 1) {
+        const pointTime = Number(globalPoints[nextIndex + 1].t) / 1e6;
         if (pointTime <= internalSimTime) {
           nextIndex++;
         } else {
@@ -77,7 +77,7 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
         onTimeChangeRef.current(nextIndex);
       }
 
-      if (internalIndex >= points.length - 1) {
+      if (internalIndex >= globalPoints.length - 1) {
         setIsPlaying(false);
         return;
       }
@@ -288,7 +288,7 @@ export function CesiumViewer({ trajectory, colorMode, currentTimeIndex, onTimeCh
               
               <button 
                 onClick={() => {
-                  if (currentTimeIndex >= (trajectory?.points.length || 0) - 1) {
+                  if (currentTimeIndex >= (globalPoints.length || 0) - 1) {
                     onTimeChange(0); // restart if at the end
                   }
                   setIsPlaying(!isPlaying);

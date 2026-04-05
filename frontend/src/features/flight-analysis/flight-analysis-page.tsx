@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CesiumViewer } from '@/components/cesium-viewer';
+import { EnuViewer } from '@/components/enu-viewer';
 import { TelemetryCharts } from '@/components/telemetry-charts';
 import { AiDebrief } from '@/components/ai-debrief';
 import { Button } from '@/components/ui/button';
@@ -69,7 +70,7 @@ function StatusIndicator({ isAnalyzing, hasAnalysis }: { isAnalyzing: boolean; h
 }
 
 function SidebarContent({
-  file, setFile, colorMode, setColorMode, isAnalyzing, analysis, handleAnalyze, formatValue,
+  file, setFile, colorMode, setColorMode, viewMode, setViewMode, isAnalyzing, analysis, handleAnalyze, formatValue,
 }: any) {
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -119,15 +120,15 @@ function SidebarContent({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-end">
-            <Button
-              onClick={handleAnalyze}
-              disabled={isAnalyzing || !file}
-              className="h-10 px-5 bg-gradient-to-r from-[var(--uav-accent)] to-[#e0b840] hover:from-[var(--uav-accent-hover)] hover:to-[#f0c850] text-[#152028] font-bold text-xs glow-gold-strong hover:glow-gold-strong transition-all duration-300 disabled:opacity-40 disabled:shadow-none"
-            >
-              {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-3.5 h-3.5 mr-1.5" />Analyze</>}
-            </Button>
-          </div>
+        </div>
+        <div className="flex items-end">
+          <Button
+            onClick={handleAnalyze}
+            disabled={isAnalyzing || !file}
+            className="w-full h-10 px-5 bg-gradient-to-r from-[var(--uav-accent)] to-[#e0b840] hover:from-[var(--uav-accent-hover)] hover:to-[#f0c850] text-[#152028] font-bold text-xs glow-gold-strong hover:glow-gold-strong transition-all duration-300 disabled:opacity-40 disabled:shadow-none"
+          >
+            {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Sparkles className="w-3.5 h-3.5 mr-1.5" />Analyze</>}
+          </Button>
         </div>
 
         <StatusIndicator isAnalyzing={isAnalyzing} hasAnalysis={!!analysis} />
@@ -218,6 +219,7 @@ export function FlightAnalysisPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<FlightAnalysis | null>(null);
   const [colorMode, setColorMode] = useState<'speed' | 'time'>('speed');
+  const [viewMode, setViewMode] = useState<'map' | '3d'>('map');
   const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
 
   const [sidebarWidth, setSidebarWidth] = useState(380);
@@ -320,6 +322,7 @@ export function FlightAnalysisPage() {
             <SidebarContent
               file={file} setFile={setFile}
               colorMode={colorMode} setColorMode={setColorMode}
+              viewMode={viewMode} setViewMode={setViewMode}
               isAnalyzing={isAnalyzing} analysis={analysis}
               handleAnalyze={handleAnalyze} formatValue={formatValue}
             />
@@ -350,7 +353,7 @@ export function FlightAnalysisPage() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col gap-3 min-w-0 p-3 lg:p-4 overflow-y-auto lg:overflow-hidden relative z-10">
-        {/* Cesium Viewer */}
+        {/* Viewers */}
         <motion.section
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -360,12 +363,49 @@ export function FlightAnalysisPage() {
             isAnalyzing && "glow-cyan-border animate-glow-pulse"
           )}
         >
-          <CesiumViewer
-            trajectory={analysis?.trajectory || null}
-            colorMode={colorMode}
-            currentTimeIndex={currentTimeIndex}
-            onTimeChange={setCurrentTimeIndex}
-          />
+          {/* View Mode Switch */}
+          <div className="absolute top-3 left-3 md:top-4 md:left-4 z-20">
+            <div className="glass-panel p-1 rounded-xl flex items-center pointer-events-auto">
+              <button
+                onClick={() => setViewMode('map')}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
+                  viewMode === 'map' 
+                    ? "bg-[var(--uav-primary)]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]" 
+                    : "text-[var(--uav-muted)] hover:text-[var(--uav-text)] hover:bg-white/5"
+                )}
+              >
+                Global Map
+              </button>
+              <button
+                onClick={() => setViewMode('3d')}
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200",
+                  viewMode === '3d' 
+                    ? "bg-[var(--uav-primary)]/20 text-[var(--uav-primary)] shadow-[0_0_12px_rgba(107,227,255,0.15)]" 
+                    : "text-[var(--uav-muted)] hover:text-[var(--uav-text)] hover:bg-white/5"
+                )}
+              >
+                Local 3D (ENU)
+              </button>
+            </div>
+          </div>
+
+          {viewMode === 'map' ? (
+            <CesiumViewer
+              trajectory={analysis?.trajectory || null}
+              colorMode={colorMode}
+              currentTimeIndex={currentTimeIndex}
+              onTimeChange={setCurrentTimeIndex}
+            />
+          ) : (
+            <EnuViewer
+              trajectory={analysis?.trajectory || null}
+              colorMode={colorMode}
+              currentTimeIndex={currentTimeIndex}
+              onTimeChange={setCurrentTimeIndex}
+            />
+          )}
         </motion.section>
 
         {/* Telemetry Charts */}
