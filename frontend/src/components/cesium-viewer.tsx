@@ -13,8 +13,8 @@ const scratchPosition = new Cesium.Cartesian3();
 const scratchHpr = new Cesium.HeadingPitchRoll();
 const scratchQuaternion = new Cesium.Quaternion();
 const fixOffset = Cesium.Quaternion.fromAxisAngle(
-  new Cesium.Cartesian3(0, 1, 0),
-  Cesium.Math.toRadians(90),
+  new Cesium.Cartesian3(1, 1, 1),
+  Cesium.Math.toRadians(0),
 );
 
 interface CesiumViewerProps {
@@ -130,8 +130,7 @@ export function CesiumViewer({
       skyAtmosphere: false,
       skyBox: false,
       creditContainer: document.createElement("div"),
-      requestRenderMode: true,
-      maximumRenderTimeChange: Infinity,
+      requestRenderMode: false,
     });
 
     // Set background to a dark color to match the theme
