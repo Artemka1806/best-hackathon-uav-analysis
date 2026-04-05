@@ -148,7 +148,7 @@ export function AiDebrief({ analysis }: AiDebriefProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/5 shrink-0">
         <div className="flex items-center gap-2">
-          <div className="p-1 rounded-md bg-[var(--uav-primary)]/10 shadow-[0_0_12px_rgba(107,227,255,0.2)]">
+          <div className="p-1 rounded-md bg-[#6be3ff]/10 shadow-[0_0_12px_rgba(107,227,255,0.2)]">
             <Sparkles className="w-3.5 h-3.5 text-[var(--uav-primary)]" />
           </div>
           <span className="text-xs font-bold text-[var(--uav-text-secondary)] uppercase tracking-wider">AI Debrief</span>
@@ -197,8 +197,8 @@ export function AiDebrief({ analysis }: AiDebriefProps) {
                 <div className={cn(
                   "w-6 h-6 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
                   msg.role === 'user'
-                    ? "bg-[var(--uav-accent)]/10 border border-[var(--uav-accent)]/20"
-                    : "bg-[var(--uav-primary)]/10 border border-[var(--uav-primary)]/20",
+                    ? "bg-[#6be3ff]/10 border border-[#6be3ff]/20"
+                    : "bg-[#6be3ff]/10 border border-[#6be3ff]/20",
                 )}>
                   {msg.role === 'user'
                     ? <User className="w-3 h-3 text-[var(--uav-accent)]" />
@@ -210,7 +210,7 @@ export function AiDebrief({ analysis }: AiDebriefProps) {
                 <div className={cn(
                   "max-w-[85%] rounded-xl px-3 py-2 text-[13px] leading-relaxed",
                   msg.role === 'user'
-                    ? "bg-[var(--uav-accent)]/[0.07] border border-[var(--uav-accent)]/10 text-[var(--uav-text)]"
+                    ? "bg-[#6be3ff]/[0.07] border border-[#6be3ff]/10 text-[var(--uav-text)]"
                     : "bg-white/[0.03] border border-white/5 text-[var(--uav-text)]",
                 )}>
                   <div
@@ -239,7 +239,7 @@ export function AiDebrief({ analysis }: AiDebriefProps) {
 
       {/* Input */}
       <form onSubmit={handleSend} className="p-2.5 border-t border-white/5 shrink-0">
-        <div className="flex items-end gap-2 bg-[var(--uav-bg-subtle)] rounded-xl border border-white/5 p-1.5 focus-within:border-[var(--uav-primary)]/20 transition-colors">
+        <div className="flex items-end gap-2 bg-[var(--uav-bg-subtle)] rounded-xl border border-white/5 p-1.5 focus-within:border-[#6be3ff]/20 transition-colors">
           <textarea
             ref={textareaRef}
             value={input}
@@ -261,7 +261,7 @@ export function AiDebrief({ analysis }: AiDebriefProps) {
             type="submit"
             disabled={!analysis || isStreaming || !input.trim() || readyState !== ReadyState.OPEN}
             size="icon"
-            className="h-8 w-8 rounded-lg bg-[var(--uav-primary)]/15 hover:bg-[var(--uav-primary)]/25 text-[var(--uav-primary)] border-0 shrink-0 transition-all duration-200 disabled:opacity-30"
+            className="h-8 w-8 rounded-lg bg-[#6be3ff]/15 hover:bg-[#6be3ff]/25 text-[var(--uav-primary)] border-0 shrink-0 transition-all duration-200 disabled:opacity-30"
           >
             {isStreaming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
           </Button>
