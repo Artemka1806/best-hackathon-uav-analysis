@@ -45,6 +45,12 @@ export interface FlightAnalysis {
     imu_acceleration: { t: number | string; value: number }[];
   };
   trajectory: Trajectory;
+  parameters?: { name: string; value: number | string }[];
+  flight_modes?: { t_s: number; mode: string; mode_num?: number }[];
+  errors?: { t_s: number; subsys: number; ecode: number }[];
+  battery?: { t_s: number; volt?: number; curr?: number; consumed_mah?: number }[];
+  gps_quality?: { t_s: number; fix?: number; hdop?: number; sats?: number }[];
+  attitude?: { t_s: number; roll_deg: number; pitch_deg: number; yaw_deg: number }[];
 }
 
 export interface ChatMessage {
