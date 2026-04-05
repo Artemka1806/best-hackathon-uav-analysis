@@ -160,13 +160,13 @@ export function TelemetryCharts({ series }: TelemetryChartsProps) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-3 h-full">
-      <ChartPanel icon={Mountain} title="Altitude vs Time" color="bg-[var(--uav-primary)]/10 text-[var(--uav-primary)]" glowClass="hover:glow-cyan">
+      <ChartPanel icon={Mountain} title="Altitude vs Time" color="bg-[#6be3ff]/10 text-[var(--uav-primary)]" glowClass="hover:glow-cyan">
         <Line data={altitudeChartData} options={commonOptions} />
       </ChartPanel>
-      <ChartPanel icon={TrendingUp} title="Integrated Speed" color="bg-[var(--uav-accent)]/10 text-[var(--uav-accent)]" glowClass="hover:glow-gold">
+      <ChartPanel icon={TrendingUp} title="Integrated Speed" color="bg-[#6be3ff]/10 text-[var(--uav-accent)]" glowClass="hover:glow-gold">
         <Line data={speedChartData} options={commonOptions} />
       </ChartPanel>
-      <ChartPanel icon={Zap} title="Acceleration" color="bg-[var(--uav-danger)]/10 text-[var(--uav-danger)]" glowClass="hover:shadow-[0_0_30px_rgba(255,123,114,0.12)]">
+      <ChartPanel icon={Zap} title="Acceleration" color="bg-[#f87171]/10 text-[var(--uav-danger)]" glowClass="hover:shadow-[0_0_30px_rgba(255,123,114,0.12)]">
         <Line data={accelerationChartData} options={commonOptions} />
       </ChartPanel>
     </div>

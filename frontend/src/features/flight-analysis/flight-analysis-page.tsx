@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CesiumViewer } from '@/components/cesium-viewer';
 import { TelemetryCharts } from '@/components/telemetry-charts';
@@ -52,8 +52,8 @@ function StatusIndicator({ isAnalyzing, hasAnalysis }: { isAnalyzing: boolean; h
       layout
       className={cn(
         "flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium border transition-all duration-300",
-        isAnalyzing && "bg-[var(--uav-primary)]/5 border-[var(--uav-primary)]/20 text-[var(--uav-primary)]",
-        !isAnalyzing && hasAnalysis && "bg-[var(--uav-success)]/5 border-[var(--uav-success)]/20 text-[var(--uav-success)]",
+        isAnalyzing && "bg-[#6be3ff]/5 border-[#6be3ff]/20 text-[var(--uav-primary)]",
+        !isAnalyzing && hasAnalysis && "bg-[#4ade80]/5 border-[#4ade80]/20 text-[var(--uav-success)]",
         !isAnalyzing && !hasAnalysis && "bg-white/[0.02] border-white/5 text-[var(--uav-muted)]",
       )}
     >
@@ -61,7 +61,7 @@ function StatusIndicator({ isAnalyzing, hasAnalysis }: { isAnalyzing: boolean; h
         "w-1.5 h-1.5 rounded-full shrink-0",
         isAnalyzing && "bg-[var(--uav-primary)] animate-pulse shadow-[0_0_6px_rgba(107,227,255,0.5)]",
         !isAnalyzing && hasAnalysis && "bg-[var(--uav-success)] shadow-[0_0_6px_rgba(105,210,157,0.5)]",
-        !isAnalyzing && !hasAnalysis && "bg-[var(--uav-muted)]/40",
+        !isAnalyzing && !hasAnalysis && "bg-[#4a6d7a]/40",
       )} />
       {isAnalyzing ? 'Parsing telemetry & computing metrics...' : (hasAnalysis ? 'Analysis complete — data ready' : 'Upload a .BIN log file to begin')}
     </motion.div>
@@ -76,7 +76,7 @@ function SidebarContent({
       {/* Header */}
       <div className="space-y-1">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-xl bg-[var(--uav-accent)]/10 border border-[var(--uav-accent)]/20 glow-gold">
+          <div className="p-2 rounded-xl bg-[#6be3ff]/10 border border-[#6be3ff]/20 glow-gold">
             <Plane className="w-4.5 h-4.5 text-[var(--uav-accent)]" />
           </div>
           <div>
@@ -156,10 +156,10 @@ function SidebarContent({
           <div className="space-y-4">
             {/* Metric Cards */}
             <div className="grid grid-cols-2 gap-2.5">
-              <MetricCard icon={Clock} label="Duration" value={formatValue(analysis?.metrics.flight_duration_s, 1, 's')} color="bg-[var(--uav-primary)]/10 text-[var(--uav-primary)]" glowClass="hover:glow-cyan" delay={0} />
-              <MetricCard icon={Route} label="Distance" value={formatValue(analysis?.metrics.total_distance_m, 1, 'm')} color="bg-[var(--uav-success)]/10 text-[var(--uav-success)]" glowClass="hover:shadow-[0_0_30px_rgba(105,210,157,0.15)]" delay={0.05} />
-              <MetricCard icon={Mountain} label="Max Alt" value={formatValue(analysis?.metrics.max_altitude_gain_m, 1, 'm')} color="bg-[var(--uav-accent)]/10 text-[var(--uav-accent)]" glowClass="hover:glow-gold" delay={0.1} />
-              <MetricCard icon={Zap} label="Max Speed" value={formatValue(analysis?.metrics.max_horizontal_speed_mps, 2, 'm/s')} color="bg-[var(--uav-danger)]/10 text-[var(--uav-danger)]" glowClass="hover:shadow-[0_0_30px_rgba(255,123,114,0.15)]" delay={0.15} />
+              <MetricCard icon={Clock} label="Duration" value={formatValue(analysis?.metrics.flight_duration_s, 1, 's')} color="bg-[#6be3ff]/10 text-[var(--uav-primary)]" glowClass="hover:glow-cyan" delay={0} />
+              <MetricCard icon={Route} label="Distance" value={formatValue(analysis?.metrics.total_distance_m, 1, 'm')} color="bg-[#4ade80]/10 text-[var(--uav-success)]" glowClass="hover:shadow-[0_0_30px_rgba(105,210,157,0.15)]" delay={0.05} />
+              <MetricCard icon={Mountain} label="Max Alt" value={formatValue(analysis?.metrics.max_altitude_gain_m, 1, 'm')} color="bg-[#6be3ff]/10 text-[var(--uav-accent)]" glowClass="hover:glow-gold" delay={0.1} />
+              <MetricCard icon={Zap} label="Max Speed" value={formatValue(analysis?.metrics.max_horizontal_speed_mps, 2, 'm/s')} color="bg-[#f87171]/10 text-[var(--uav-danger)]" glowClass="hover:shadow-[0_0_30px_rgba(255,123,114,0.15)]" delay={0.15} />
             </div>
 
             {/* Warnings */}
@@ -171,12 +171,12 @@ function SidebarContent({
                 {analysis?.summary.warnings.length || analysis?.summary.anomalies.length ? (
                   <>
                     {analysis?.summary.warnings.map((w: string, i: number) => (
-                      <Badge key={`w-${i}`} variant="outline" className="bg-[var(--uav-danger)]/5 border-[var(--uav-danger)]/15 text-red-300 text-[10px] py-0.5 font-medium gap-1">
+                      <Badge key={`w-${i}`} variant="outline" className="bg-[#f87171]/5 border-[#f87171]/15 text-red-300 text-[10px] py-0.5 font-medium gap-1">
                         <AlertTriangle className="w-2.5 h-2.5" /> {w}
                       </Badge>
                     ))}
                     {analysis?.summary.anomalies.map((a: string, i: number) => (
-                      <Badge key={`a-${i}`} variant="outline" className="bg-[var(--uav-accent)]/5 border-[var(--uav-accent)]/15 text-orange-300 text-[10px] py-0.5 font-medium gap-1">
+                      <Badge key={`a-${i}`} variant="outline" className="bg-[#6be3ff]/5 border-[#6be3ff]/15 text-orange-300 text-[10px] py-0.5 font-medium gap-1">
                         <Info className="w-2.5 h-2.5" /> {a}
                       </Badge>
                     ))}
@@ -219,6 +219,40 @@ export function FlightAnalysisPage() {
   const [analysis, setAnalysis] = useState<FlightAnalysis | null>(null);
   const [colorMode, setColorMode] = useState<'speed' | 'time'>('speed');
   const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
+
+  const [sidebarWidth, setSidebarWidth] = useState(380);
+  const isDragging = useRef(false);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none'; // prevent text selection while dragging
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging.current) return;
+    let newWidth = e.clientX;
+    if (newWidth < 300) newWidth = 300;
+    if (newWidth > 600) newWidth = 600;
+    setSidebarWidth(newWidth);
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
 
   const handleAnalyze = async () => {
     if (!file) {
@@ -270,7 +304,7 @@ export function FlightAnalysisPage() {
       {/* Mobile Header */}
       <header className="lg:hidden flex items-center justify-between p-3 glass-panel z-50 relative">
         <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-[var(--uav-accent)]/10 border border-[var(--uav-accent)]/20 glow-gold">
+          <div className="p-1.5 rounded-lg bg-[#6be3ff]/10 border border-[#6be3ff]/20 glow-gold">
             <Plane className="w-4 h-4 text-[var(--uav-accent)]" />
           </div>
           <h1 className="text-base font-bold tracking-tight">UAV Analysis</h1>
@@ -294,7 +328,10 @@ export function FlightAnalysisPage() {
       </header>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-[380px] shrink-0 flex-col p-4 overflow-y-auto no-scrollbar relative z-10 border-r border-white/5">
+      <aside 
+        className="hidden lg:flex shrink-0 flex-col p-4 overflow-y-auto overflow-x-hidden no-scrollbar relative z-10"
+        style={{ width: sidebarWidth }}
+      >
         <SidebarContent
           file={file} setFile={setFile}
           colorMode={colorMode} setColorMode={setColorMode}
@@ -302,6 +339,14 @@ export function FlightAnalysisPage() {
           handleAnalyze={handleAnalyze} formatValue={formatValue}
         />
       </aside>
+
+      {/* Resize Handle */}
+      <div
+        className="hidden lg:flex w-1.5 cursor-col-resize z-20 shrink-0 group relative justify-center"
+        onMouseDown={handleMouseDown}
+      >
+        <div className="w-px h-full bg-white/5 group-hover:w-0.5 group-hover:bg-[var(--uav-primary)] transition-all" />
+      </div>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col gap-3 min-w-0 p-3 lg:p-4 overflow-y-auto lg:overflow-hidden relative z-10">
